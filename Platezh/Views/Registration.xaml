@@ -100,8 +100,6 @@
 
                 <Label Content="Выберите роль:" Margin="0,10,0,0"/>
                 <ComboBox x:Name="cmbRole">
-                    <ComboBoxItem Content="Кассир"/>
-                    <ComboBoxItem Content="Экономист"/>
                 </ComboBox>
 
                 <Button Content="Зарегистрировать" 

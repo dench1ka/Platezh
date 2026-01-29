@@ -110,7 +110,7 @@
             </StackPanel>
 
             <Border CornerRadius="5" BorderBrush="#FFE0E0E0" BorderThickness="1" Background="White">
-                <DataGrid x:Name="UsersGrid" SelectionChanged="UsersGrid_SelectionChanged">
+                <DataGrid x:Name="UsersGrid">
                     <DataGrid.Columns>
                         <DataGridTextColumn Header="ID" Binding="{Binding id}" Width="60"/>
                         <DataGridTextColumn Header="Логин" Binding="{Binding login}" Width="*"/>
@@ -137,12 +137,6 @@
                            Foreground="#FF1976D2"
                            Margin="0,0,0,10"/>
 
-                <Label Content="Выбранный пользователь"/>
-                <TextBox x:Name="SelectedUserBox" IsReadOnly="True"/>
-
-                <Label Content="Новый пароль"/>
-                <PasswordBox x:Name="NewPasswordBox"/>
-
                 <StackPanel Margin="0,15,0,0">
 
                     <Button Content="Добавить пользователя"
@@ -154,6 +148,7 @@
                         Height="38"
                         Margin="0,8,0,0"
                         Click="EditUser_Click"/>
+
 
                     <Button Content="Удалить пользователя"
                             Height="38"
