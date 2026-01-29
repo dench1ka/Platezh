@@ -1,98 +1,24 @@
 ﻿using Microsoft.Data.SqlClient;
 using System;
-using System.Collections.Generic;
+using System.Collections.ObjectModel;
 using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
-using System.Windows.Data;
-using System.Windows.Documents;
-using System.Windows.Input;
-using System.Windows.Media;
-using System.Windows.Media.Imaging;
-using System.Windows.Shapes;
 using System.Configuration;
-using System.Data;
 
 namespace Platezh.Views
 {
-    /// <summary>
-    /// Логика взаимодействия для AdminWindow.xaml
-    /// </summary>
     public partial class AdminWindow : Window
     {
-
         string connectionString = ConfigurationManager.ConnectionStrings["PlatezhDB"].ConnectionString;
-        private List<UserItem> userList = new List<UserItem>();
 
+        private ObservableCollection<UserItem> userList = new ObservableCollection<UserItem>();
 
         public AdminWindow()
         {
-           
             InitializeComponent();
+            UsersGrid.ItemsSource = userList;
             LoadUsers();
-        }
-
-
-
-
-        private void Deactivate_Click(object sender, RoutedEventArgs e)
-        {
-
-
-        }
-
-        private void ChangePassword_Click(object sender, RoutedEventArgs e)
-        {
-
-        }
-
-        private void DeleteUser_Click(object sender, RoutedEventArgs e)
-        {
-
-        }
-
-        private void Back_Click(object sender, RoutedEventArgs e)
-        {
-            MainWindow mainWindow = new MainWindow();
-            mainWindow.Show();
-            this.Close();
-        }
-        private void Activate_Click(object sender, RoutedEventArgs e)
-        {
-
-        }
-
-
-        private void UsersGrid_SelectionChanged(object sender, SelectionChangedEventArgs e)
-        {
-            //sdd
-        }
-
-        private void UsersGrid_MouseDoubleClick(object sender, MouseButtonEventArgs e)
-        {
-            if (UsersGrid.SelectedItem is UserItem selectedUser)
-            {
-                // Создаём и открываем окно редактирования пользователя
-                EditUserWindow editWindow = new EditUserWindow(selectedUser);
-                editWindow.ShowDialog();
-
-                // После закрытия окна можно обновить список пользователей
-                LoadUsers();
-            }
-        }
-
-
-
-        private void SearchBox_TextChanged(object sender, TextChangedEventArgs e)
-        {
-            string searchText = SearchBox.Text.ToLower();
-
-            UsersGrid.ItemsSource = userList
-            .Where(m => m.login.ToLower().Contains(searchText))
-            .ToList();
-            
         }
 
         private void LoadUsers()
@@ -102,7 +28,8 @@ namespace Platezh.Views
             using (SqlConnection conn = new SqlConnection(connectionString))
             {
                 conn.Open();
-                using (SqlCommand cmd = new SqlCommand("SELECT UserID, Login, PasswordHash, RoleName, CreatedAt, IsActive FROM Users LEFT JOIN Role ON Users.RoleID = Role.RoleID", conn))
+                string query = "SELECT UserID, Login, PasswordHash, RoleName, CreatedAt, IsActive FROM Users LEFT JOIN Role ON Users.RoleID = Role.RoleID";
+                using (SqlCommand cmd = new SqlCommand(query, conn))
                 using (SqlDataReader reader = cmd.ExecuteReader())
                 {
                     while (reader.Read())
@@ -119,21 +46,14 @@ namespace Platezh.Views
                     }
                 }
             }
-
-            UsersGrid.ItemsSource = userList;
-
         }
 
         private void EditUser_Click(object sender, RoutedEventArgs e)
         {
-
             if (UsersGrid.SelectedItem is UserItem selectedUser)
             {
-                // Создаём и открываем окно редактирования пользователя
                 EditUserWindow editWindow = new EditUserWindow(selectedUser);
                 editWindow.ShowDialog();
-
-                // После закрытия окна можно обновить список пользователей
                 LoadUsers();
             }
         }
@@ -142,11 +62,68 @@ namespace Platezh.Views
         {
             Registration registration = new Registration();
             registration.ShowDialog();
-
-            LoadUsers();
+            LoadUsers();              
         }
-    }
 
+        private void SearchBox_TextChanged(object sender, TextChangedEventArgs e)
+        {
+            string searchText = SearchBox.Text.ToLower();
+            UsersGrid.ItemsSource = userList
+                .Where(m => m.login.ToLower().Contains(searchText))
+                .ToList();
+        }
+
+        private void Back_Click(object sender, RoutedEventArgs e)
+        {
+            MainWindow mainWindow = new MainWindow();
+            mainWindow.Show();
+            this.Close();
+        }
+
+        private void DeleteUser_Click(object sender, RoutedEventArgs e)
+        {
+            if (UsersGrid.SelectedItem is not UserItem selectedUser)
+            {
+                MessageBox.Show("Выберите пользователя для удаления!", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Warning);
+                return;
+            }
+  
+            var result = MessageBox.Show($"Вы действительно хотите удалить пользователя '{selectedUser.login}'?",
+                                         "Подтверждение удаления", MessageBoxButton.YesNo, MessageBoxImage.Question);
+
+            if (result != MessageBoxResult.Yes)
+                return;
+
+            try
+            {
+                using (SqlConnection conn = new SqlConnection(connectionString))
+                {
+                    conn.Open();
+                    string deleteQuery = "DELETE FROM Users WHERE UserID = @UserID";
+                    using (SqlCommand cmd = new SqlCommand(deleteQuery, conn))
+                    {
+                        cmd.Parameters.AddWithValue("@UserID", selectedUser.id);
+                        int rowsAffected = cmd.ExecuteNonQuery();
+
+                        if (rowsAffected > 0)
+                        {
+                            MessageBox.Show("Пользователь успешно удалён!", "Успех", MessageBoxButton.OK, MessageBoxImage.Information);
+                            LoadUsers();
+                        }
+                        else
+                        {
+                            MessageBox.Show("Пользователь не найден или уже удалён.", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Ошибка при удалении пользователя: {ex.Message}", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
+    }
 
     public class UserItem
     {
