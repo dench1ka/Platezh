@@ -10,22 +10,19 @@ namespace Platezh.Views
 {
     public partial class EditUserWindow : Window
     {
-        private UserItem user; // текущий редактируемый пользователь
+        private UserItem user; 
         string connectionString = ConfigurationManager.ConnectionStrings["PlatezhDB"].ConnectionString;
 
-        // Конструктор без параметров (для дизайнеров WPF)
         public EditUserWindow()
         {
             InitializeComponent();
         }
 
-        // Новый конструктор с UserItem
         public EditUserWindow(UserItem selectedUser)
         {
             InitializeComponent();
             user = selectedUser;
 
-            // Заполняем поля окна данными пользователя
             LoginTextBox.Text = user.login;
             IsActiveCheckBox.IsChecked = user.isActive == "Активен";
         }
