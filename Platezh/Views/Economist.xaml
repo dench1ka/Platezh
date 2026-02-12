@@ -103,6 +103,7 @@
                     <Button x:Name="BtnPrices" Content="Цены и склад" Width="140" Height="38" Click="ViewSwitch_Click"/>
                     <Button x:Name="BtnReference" Content="Справочник материалов" Width="190" Height="38" Click="ViewSwitch_Click"/>
                     <Button x:Name="BtnServices" Content="Услуги" Width="140" Height="38" Click="ViewSwitch_Click"/>
+                    <Button x:Name="BtnUnits" Content="Единицы измерения" Width="170" Height="38" Click="ViewSwitch_Click"/>
                 </StackPanel>
             </StackPanel>
 
@@ -119,13 +120,17 @@
                 <TextBlock Text="Управление данными" FontWeight="Bold" Foreground="#FF1976D2" 
                            FontSize="16" Margin="0,0,0,10"/>
 
-                <Label Content="Введите id"/>
-                <TextBox x:Name="idBox"/>
-                <Label Content="Введите название"/>
-                <TextBox x:Name="NameBox"/>
-
                 <StackPanel x:Name="MaterialsInputPanel" Margin="0,5,0,0">
-                    <Label Content="Введите кол-во"/>
+
+                    <Label Content="Выберите материал"/>
+                    <ComboBox x:Name="MaterialSelectBox" 
+              DisplayMemberPath="Name" 
+              SelectedValuePath="MaterialID" 
+              IsEditable="True"
+              StaysOpenOnEdit="True"
+              Margin="0,3,0,5"/>
+
+                    <Label Content="Введите кол-во на складе"/>
                     <TextBox x:Name="StockBox"/>
 
                     <StackPanel Orientation="Horizontal" Margin="0,5,0,0">
@@ -154,10 +159,31 @@
                 </StackPanel>
 
                 <StackPanel x:Name="ServicesInputPanel" Margin="0,5,0,0" Visibility="Collapsed">
+                    <Label Content="Введите id"/>
+                    <TextBox x:Name="TarifIdBox"/>
+                    <Label Content="Введите название"/>
+                    <TextBox x:Name="TarifNameBox"/>
                     <Label Content="Введите тариф"/>
                     <TextBox x:Name="TarifBox"/>
                     <Label Content="Введите стоимость доп. материалов"/>
                     <TextBox x:Name="AdditionalMaterialsPriceBox"/>
+                    <CheckBox x:Name="TarifIsActiveCheckBox" Content="Активен/Неактивен" 
+                         IsChecked="True" Margin="0,10,0,10" VerticalContentAlignment="Center"/>
+                </StackPanel>
+                
+                <StackPanel x:Name="UnitsInputPanel" Margin="0,5,0,0" Visibility="Collapsed">
+                    <Label Content="Введите ед. измерения"/>
+                    <TextBox x:Name="UnitBox"/>
+                </StackPanel>
+
+                <StackPanel x:Name="ReferenceInputPanel" Margin="0,5,0,0" Visibility="Collapsed">
+                    <Label Content="Введите название"/>
+                    <TextBox x:Name="UnitNameBox"/>
+                    <Label Content="Единица измерения"/>
+                    <ComboBox x:Name="UnitChoice" DisplayMemberPath="Name" SelectedValuePath="UnitID" />
+
+                    <CheckBox x:Name="IsActiveCheckBox" Content="Активен (доступен для выбора)" 
+                         IsChecked="True" Margin="0,10,0,10" VerticalContentAlignment="Center"/>
                 </StackPanel>
 
                 <StackPanel Margin="0,15,0,0">
