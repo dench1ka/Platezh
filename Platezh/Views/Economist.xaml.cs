@@ -12,14 +12,15 @@ namespace Platezh.Views
     // Перечисление режимов таблицы
     public enum TableMode
     {
-        Prices,     // Цены и склад (SQL: MaterialPrices + Materials)
-        Reference,  // Справочник материалов (SQL: Materials)
-        Services,    // Услуги (SQL: Services)
-        Units
+        Prices,     // Цены и склад
+        Reference,  // Справочник материалов
+        Services,   // Услуги
+        Units       // Единицы измерения
     }
 
     public partial class Economist : Window
     {
+        // Строка подключения из App.config
         string connectionString = ConfigurationManager.ConnectionStrings["PlatezhDB"].ConnectionString;
 
         // Текущий режим работы
@@ -36,18 +37,15 @@ namespace Platezh.Views
         {
             InitializeComponent();
 
-            // Инициализация UI
-            NdsChoice.SelectedIndex = 0;
-            PriceChoice.SelectedIndex = 0;
-
-            // Загружаем список единиц измерения из БД для ComboBox
+            // Предварительная загрузка справочников для ComboBox
             LoadUnits();
 
-            // Запускаем режим по умолчанию
+            // Запускаем режим по умолчанию (Цены)
             SwitchMode(TableMode.Prices);
         }
 
-        // Обработчик нажатия кнопок переключения
+        // --- ЛОГИКА ПЕРЕКЛЮЧЕНИЯ РЕЖИМОВ ---
+
         private void ViewSwitch_Click(object sender, RoutedEventArgs e)
         {
             if (sender == BtnPrices) SwitchMode(TableMode.Prices);
@@ -56,25 +54,25 @@ namespace Platezh.Views
             else if (sender == BtnUnits) SwitchMode(TableMode.Units);
         }
 
-        // Основная логика переключения режимов
         private void SwitchMode(TableMode mode)
         {
             currentMode = mode;
+
+            // Очистка таблицы
             MainGrid.ItemsSource = null;
             MainGrid.Columns.Clear();
 
-            // Сбрасываем видимость ВСЕХ панелей
+            // Сброс видимости всех панелей ввода
             MaterialsInputPanel.Visibility = Visibility.Collapsed;
             ServicesInputPanel.Visibility = Visibility.Collapsed;
             ReferenceInputPanel.Visibility = Visibility.Collapsed;
+            UnitsInputPanel.Visibility = Visibility.Collapsed;
 
             switch (mode)
             {
                 case TableMode.Prices:
                     CurrentTableTitle.Content = "Цены и остатки";
                     MaterialsInputPanel.Visibility = Visibility.Visible;
-
-                    // ВАЖНО: Загружаем список материалов для выбора и саму таблицу цен
                     LoadMaterialsForCombobox();
                     LoadPrices();
                     break;
@@ -90,6 +88,7 @@ namespace Platezh.Views
                     ServicesInputPanel.Visibility = Visibility.Visible;
                     LoadServices();
                     break;
+
                 case TableMode.Units:
                     CurrentTableTitle.Content = "Единицы измерения";
                     UnitsInputPanel.Visibility = Visibility.Visible;
@@ -98,39 +97,45 @@ namespace Platezh.Views
             }
         }
 
+        // --- МЕТОДЫ ЗАГРУЗКИ ДАННЫХ (SQL) ---
+
         private void LoadUnits()
         {
             unitsList.Clear();
-
-            using (SqlConnection conn = new SqlConnection(connectionString))
+            try
             {
-                conn.Open();
-                string query = "SELECT UnitID, Name FROM Units";
-                using (SqlCommand cmd = new SqlCommand(query, conn))
-                using (SqlDataReader reader = cmd.ExecuteReader())
+                using (SqlConnection conn = new SqlConnection(connectionString))
                 {
-                    while (reader.Read())
+                    conn.Open();
+                    string query = "SELECT UnitID, Name FROM Units";
+                    using (SqlCommand cmd = new SqlCommand(query, conn))
+                    using (SqlDataReader reader = cmd.ExecuteReader())
                     {
-                        unitsList.Add(new UnitsItem
+                        while (reader.Read())
                         {
-                            UnitID = reader.GetInt32(reader.GetOrdinal("UnitID")),
-                            Name = reader.GetString(reader.GetOrdinal("Name"))
-                        });
+                            unitsList.Add(new UnitsItem
+                            {
+                                UnitID = reader.GetInt32(reader.GetOrdinal("UnitID")),
+                                Name = reader.GetString(reader.GetOrdinal("Name"))
+                            });
+                        }
                     }
-                    UnitChoice.ItemsSource = unitsList;
-                    UnitChoice.DisplayMemberPath = "Name";
-                    UnitChoice.SelectedValuePath = "UnitID";
+                }
+                // Привязка к ComboBox в панели материалов
+                UnitChoice.ItemsSource = null;
+                UnitChoice.ItemsSource = unitsList;
+                UnitChoice.DisplayMemberPath = "Name";
+                UnitChoice.SelectedValuePath = "UnitID";
 
-
+                if (currentMode == TableMode.Units)
+                {
+                    CreateColumns(new Dictionary<string, string> {
+                        {"UnitID", "ID"}, {"Name", "Название единицы измерения"}
+                    });
+                    MainGrid.ItemsSource = unitsList.ToList();
                 }
             }
-
-            CreateColumns(new Dictionary<string, string> {
-                {"UnitID", "ID"}, {"Name", "Название единицы измерения"}
-            });
-
-            MainGrid.ItemsSource = unitsList;
-
+            catch (Exception ex) { MessageBox.Show("Ошибка Units: " + ex.Message); }
         }
 
         private void LoadPrices()
@@ -139,9 +144,10 @@ namespace Platezh.Views
             using (SqlConnection conn = new SqlConnection(connectionString))
             {
                 conn.Open();
-                string query = @"SELECT PriceID,  MaterialPrices.MaterialID as MatId, Materials.Name as MatName, Units.Name as UnitName, 
+                string query = @"SELECT PriceID, MaterialPrices.MaterialID as MatId, Materials.Name as MatName, Units.Name as UnitName, 
                                PriceWithoutNds, NdsPercent, ValidFrom, ValidTo, StockAmount, 
-                               Materials.IsActive as MatActive 
+                               Materials.IsActive as MatActive,
+                               MaterialPrices.IsActive as PriceActive 
                                FROM MaterialPrices 
                                LEFT JOIN Materials ON MaterialPrices.MaterialID = Materials.MaterialID 
                                LEFT JOIN Units ON Materials.UnitID = Units.UnitID";
@@ -154,6 +160,9 @@ namespace Platezh.Views
                         decimal price = reader.GetDecimal(reader.GetOrdinal("PriceWithoutNds"));
                         decimal percent = reader.GetDecimal(reader.GetOrdinal("NdsPercent"));
                         decimal ndsVal = Math.Round(price * (percent / 100m), 2);
+
+                        bool isMatActive = reader.GetBoolean(reader.GetOrdinal("MatActive"));
+                        bool isPriceActive = reader.GetBoolean(reader.GetOrdinal("PriceActive"));
 
                         pricesList.Add(new MaterialPriceItem
                         {
@@ -168,30 +177,31 @@ namespace Platezh.Views
                             StockAmount = reader.GetInt32(reader.GetOrdinal("StockAmount")),
                             Nds = ndsVal,
                             TotalPrice = price + ndsVal,
-                            IsActiveWord = reader.GetBoolean(reader.GetOrdinal("MatActive")) ? "Доступен" : "Недоступен"
+                            IsActiveMat = isMatActive,
+                            IsActiveWord = isMatActive ? "Доступен" : "Недоступен",
+                            IsActivePrice = isPriceActive,
+                            IsActivePriceWord = isPriceActive ? "Доступен" : "Недоступен",
                         });
                     }
                 }
             }
 
-            // Создаем колонки динамически
             CreateColumns(new Dictionary<string, string> {
                 {"PriceID", "ID Цены"}, {"MaterialsName", "Материал"}, {"MatId","ID материала" }, {"StockAmount", "Остаток"},
                 {"UnitName", "Ед."}, {"PriceWithoutNds", "Цена"}, {"Nds", "НДС"},
-                {"TotalPrice", "Итого"}, {"ValidFrom", "Дата с"}, {"IsActiveWord", "Статус"}
+                {"TotalPrice", "Итого"}, {"ValidFrom", "Дата с"}, {"ValidTo", "Дата до"},
+                {"IsActiveWord", "Статус материала"}, {"IsActivePriceWord", "Статус цены"}
             });
 
-            MainGrid.ItemsSource = pricesList;
+            MainGrid.ItemsSource = pricesList.ToList();
         }
 
-        // 2. ЗАГРУЗКА СПРАВОЧНИКА (Новая таблица)
         private void LoadReference()
         {
             referenceList.Clear();
             using (SqlConnection conn = new SqlConnection(connectionString))
             {
                 conn.Open();
-                // Простой запрос к таблице Materials
                 string query = "SELECT MaterialID, m.Name as mName, u.Name as uName, IsActive FROM Materials as m LEFT JOIN Units as u ON u.unitID = m.UnitID";
 
                 using (SqlCommand cmd = new SqlCommand(query, conn))
@@ -199,12 +209,14 @@ namespace Platezh.Views
                 {
                     while (reader.Read())
                     {
+                        bool isActive = reader.GetBoolean(reader.GetOrdinal("IsActive"));
                         referenceList.Add(new MaterialReferenceItem
                         {
                             MaterialID = reader.GetInt32(reader.GetOrdinal("MaterialID")),
                             Name = reader.GetString(reader.GetOrdinal("mName")),
-                            IsActiveWord = reader.GetBoolean(reader.GetOrdinal("IsActive")) ? "Активен" : "Неактивен",
-                            UnitName = reader.GetString(reader.GetOrdinal("uName"))
+                            UnitName = reader.IsDBNull(reader.GetOrdinal("uName")) ? "" : reader.GetString(reader.GetOrdinal("uName")),
+                            IsActive = isActive,
+                            IsActiveWord = isActive ? "Активен" : "Неактивен"
                         });
                     }
                 }
@@ -214,7 +226,7 @@ namespace Platezh.Views
                 {"MaterialID", "ID Мат."}, {"Name", "Название материала"}, {"UnitName", "Ед. измерения"}, {"IsActiveWord", "Статус"}
             });
 
-            MainGrid.ItemsSource = referenceList;
+            MainGrid.ItemsSource = referenceList.ToList();
         }
 
         private void LoadServices()
@@ -232,6 +244,7 @@ namespace Platezh.Views
                     {
                         decimal basePrice = reader.GetDecimal(reader.GetOrdinal("BasePrice"));
                         decimal addPrice = reader.GetDecimal(reader.GetOrdinal("AddMaterials"));
+                        bool isActive = reader.GetBoolean(reader.GetOrdinal("IsActive"));
 
                         serviceList.Add(new ServiceItem
                         {
@@ -240,7 +253,8 @@ namespace Platezh.Views
                             BasePrice = basePrice,
                             AddMaterials = addPrice,
                             TotalPrice = basePrice + addPrice,
-                            IsActiveWord = reader.GetBoolean(reader.GetOrdinal("IsActive")) ? "Доступна" : "Недоступна"
+                            IsActive = isActive,
+                            IsActiveWord = isActive ? "Доступна" : "Недоступна"
                         });
                     }
                 }
@@ -251,12 +265,14 @@ namespace Platezh.Views
                 {"AddMaterials", "Доп. мат."}, {"TotalPrice", "Итого"}, {"IsActiveWord", "Статус"}
             });
 
-            MainGrid.ItemsSource = serviceList;
+            MainGrid.ItemsSource = serviceList.ToList();
         }
 
-        // Хелпер для создания колонок
+        // --- ВСПОМОГАТЕЛЬНЫЕ МЕТОДЫ ---
+
         private void CreateColumns(Dictionary<string, string> headers)
         {
+            MainGrid.Columns.Clear();
             foreach (var h in headers)
             {
                 var col = new DataGridTextColumn
@@ -265,7 +281,6 @@ namespace Platezh.Views
                     Binding = new Binding(h.Key),
                     Width = DataGridLength.Auto
                 };
-                // Форматирование дат
                 if (h.Key.Contains("Valid"))
                     col.Binding.StringFormat = "dd.MM.yyyy";
 
@@ -273,36 +288,97 @@ namespace Platezh.Views
             }
         }
 
-        private void SearchBox_TextChanged(object sender, TextChangedEventArgs e)
+        private void LoadMaterialsForCombobox()
         {
-            string txt = SearchBox.Text.ToLower();
-
-            if (currentMode == TableMode.Prices)
+            materialSelectionList.Clear();
+            try
             {
-                MainGrid.ItemsSource = pricesList.Where(p => p.MaterialsName.ToLower().Contains(txt)).ToList();
+                using (SqlConnection conn = new SqlConnection(connectionString))
+                {
+                    conn.Open();
+                    string query = "SELECT MaterialID, Name FROM Materials WHERE IsActive = 1 ORDER BY Name";
+                    using (SqlCommand cmd = new SqlCommand(query, conn))
+                    using (SqlDataReader reader = cmd.ExecuteReader())
+                    {
+                        while (reader.Read())
+                        {
+                            materialSelectionList.Add(new MaterialReferenceItem
+                            {
+                                MaterialID = reader.GetInt32(reader.GetOrdinal("MaterialID")),
+                                Name = reader.GetString(reader.GetOrdinal("Name"))
+                            });
+                        }
+                    }
+                }
+                MaterialSelectBox.ItemsSource = null;
+                MaterialSelectBox.ItemsSource = materialSelectionList;
+                MaterialSelectBox.DisplayMemberPath = "Name";
+                MaterialSelectBox.SelectedValuePath = "MaterialID";
             }
-            else if (currentMode == TableMode.Reference)
-            {
-                MainGrid.ItemsSource = referenceList.Where(r => r.Name.ToLower().Contains(txt)).ToList();
-            }
-            else if (currentMode == TableMode.Services)
-            {
-                MainGrid.ItemsSource = serviceList.Where(s => s.Name.ToLower().Contains(txt)).ToList();
-            }
-            else if (currentMode == TableMode.Units)
-            {
-                MainGrid.ItemsSource = unitsList.Where(s => s.Name.ToLower().Contains(txt)).ToList();
-            }
+            catch (Exception ex) { MessageBox.Show("Ошибка MaterialCombo: " + ex.Message); }
         }
 
-        // Кнопка Обновить
-        private void Update_Click(object sender, RoutedEventArgs e)
+        // --- ОБРАБОТЧИКИ КНОПОК CRUD ---
+
+        private void Add_Click(object sender, RoutedEventArgs e)
         {
-            SwitchMode(currentMode); // Просто перезагружаем текущий режим
-            MessageBox.Show("Данные обновлены.");
+            try
+            {
+                using (SqlConnection conn = new SqlConnection(connectionString))
+                {
+                    conn.Open();
+                    string query = "";
+                    SqlCommand cmd = new SqlCommand();
+                    cmd.Connection = conn;
+
+                    if (currentMode == TableMode.Prices)
+                    {
+                        if (MaterialSelectBox.SelectedValue == null) { MessageBox.Show("Выберите материал!"); return; }
+                        query = @"INSERT INTO MaterialPrices (MaterialID, PriceWithoutNds, NdsPercent, ValidFrom, ValidTo, StockAmount, IsActive) 
+                                  VALUES (@matId, @price, @nds, @from, @to, @stock, @isActive)";
+
+                        cmd.Parameters.AddWithValue("@matId", (int)MaterialSelectBox.SelectedValue);
+                        cmd.Parameters.AddWithValue("@price", decimal.Parse(PriceBox.Text));
+                        cmd.Parameters.AddWithValue("@nds", decimal.Parse(NdsBox.Text));
+                        cmd.Parameters.AddWithValue("@from", DateFrom.SelectedDate ?? DateTime.Now);
+                        cmd.Parameters.AddWithValue("@to", DateTo.SelectedDate ?? DateTime.Now.AddYears(1));
+                        cmd.Parameters.AddWithValue("@stock", int.Parse(StockBox.Text));
+                        cmd.Parameters.AddWithValue("@isActive", PriceIsActiveCheckBox.IsChecked ?? true);
+                    }
+                    else if (currentMode == TableMode.Reference)
+                    {
+                        query = "INSERT INTO Materials (Name, UnitID, IsActive) VALUES (@name, @unit, @active)";
+                        cmd.Parameters.AddWithValue("@name", UnitNameBox.Text);
+                        cmd.Parameters.AddWithValue("@unit", UnitChoice.SelectedValue);
+                        cmd.Parameters.AddWithValue("@active", IsActiveCheckBox.IsChecked ?? true);
+                    }
+                    else if (currentMode == TableMode.Services)
+                    {
+                        query = "INSERT INTO Services (ServiceId, Name, BasePrice, AddMaterials, IsActive) VALUES (@sid, @name, @base, @add, @active)";
+                        cmd.Parameters.AddWithValue("@sid", int.Parse(TarifIdBox.Text));
+                        cmd.Parameters.AddWithValue("@name", TarifNameBox.Text);
+                        cmd.Parameters.AddWithValue("@base", decimal.Parse(TarifBox.Text));
+                        cmd.Parameters.AddWithValue("@add", decimal.Parse(AdditionalMaterialsPriceBox.Text));
+                        cmd.Parameters.AddWithValue("@active", TarifIsActiveCheckBox.IsChecked ?? true);
+                    }
+                    else if (currentMode == TableMode.Units)
+                    {
+                        query = "INSERT INTO Units (Name) VALUES (@name)";
+                        cmd.Parameters.AddWithValue("@name", UnitBox.Text);
+                    }
+
+                    if (!string.IsNullOrEmpty(query))
+                    {
+                        cmd.CommandText = query;
+                        cmd.ExecuteNonQuery();
+                        MessageBox.Show("Добавлено!");
+                        SwitchMode(currentMode);
+                    }
+                }
+            }
+            catch (Exception ex) { MessageBox.Show("Ошибка добавления: " + ex.Message); }
         }
 
-        // Кнопка Удалить
         private void Delete_Click(object sender, RoutedEventArgs e)
         {
             if (MainGrid.SelectedItem == null) { MessageBox.Show("Выберите строку!"); return; }
@@ -312,20 +388,17 @@ namespace Platezh.Views
             int idVal = 0;
 
             if (currentMode == TableMode.Prices && MainGrid.SelectedItem is MaterialPriceItem mp)
-            {
-                table = "MaterialPrices"; idCol = "PriceID"; idVal = mp.PriceID;
-            }
+            { table = "MaterialPrices"; idCol = "PriceID"; idVal = mp.PriceID; }
             else if (currentMode == TableMode.Services && MainGrid.SelectedItem is ServiceItem s)
-            {
-                table = "Services"; idCol = "ServiceId"; idVal = s.ServiceId;
-            }
+            { table = "Services"; idCol = "ServiceId"; idVal = s.ServiceId; }
             else if (currentMode == TableMode.Reference && MainGrid.SelectedItem is MaterialReferenceItem mr)
-            {
-                table = "Materials"; idCol = "MaterialID"; idVal = mr.MaterialID;
-            }
+            { table = "Materials"; idCol = "MaterialID"; idVal = mr.MaterialID; }
             else if (currentMode == TableMode.Units && MainGrid.SelectedItem is UnitsItem u)
+            { table = "Units"; idCol = "UnitID"; idVal = u.UnitID; }
 
             if (string.IsNullOrEmpty(table)) return;
+
+            if (MessageBox.Show("Удалить запись?", "Подтверждение", MessageBoxButton.YesNo) == MessageBoxResult.No) return;
 
             try
             {
@@ -344,154 +417,54 @@ namespace Platezh.Views
             catch (Exception ex) { MessageBox.Show("Ошибка удаления: " + ex.Message); }
         }
 
-        private void LoadMaterialsForCombobox()
+        private void SearchBox_TextChanged(object sender, TextChangedEventArgs e)
         {
-            materialSelectionList.Clear();
-            try
-            {
-                using (SqlConnection conn = new SqlConnection(connectionString))
-                {
-                    conn.Open();
-                    // Загружаем только активные материалы
-                    string query = "SELECT MaterialID, Name FROM Materials WHERE IsActive = 1 ORDER BY Name";
+            string txt = SearchBox.Text.ToLower();
 
-                    using (SqlCommand cmd = new SqlCommand(query, conn))
-                    using (SqlDataReader reader = cmd.ExecuteReader())
-                    {
-                        while (reader.Read())
-                        {
-                            materialSelectionList.Add(new MaterialReferenceItem
-                            {
-                                MaterialID = reader.GetInt32(reader.GetOrdinal("MaterialID")),
-                                Name = reader.GetString(reader.GetOrdinal("Name"))
-                            });
-                        }
-                    }
-                }
-
-                MaterialSelectBox.ItemsSource = materialSelectionList;
-                // Указываем, какое поле показывать пользователю
-                MaterialSelectBox.DisplayMemberPath = "Name";
-                // Указываем, какое поле является значением (ID)
-                MaterialSelectBox.SelectedValuePath = "MaterialID";
-            }
-            catch (Exception ex)
-            {
-                MessageBox.Show("Ошибка загрузки списка материалов: " + ex.Message);
-            }
+            if (currentMode == TableMode.Prices)
+                MainGrid.ItemsSource = pricesList.Where(p => p.MaterialsName.ToLower().Contains(txt)).ToList();
+            else if (currentMode == TableMode.Reference)
+                MainGrid.ItemsSource = referenceList.Where(r => r.Name.ToLower().Contains(txt)).ToList();
+            else if (currentMode == TableMode.Services)
+                MainGrid.ItemsSource = serviceList.Where(s => s.Name.ToLower().Contains(txt)).ToList();
+            else if (currentMode == TableMode.Units)
+                MainGrid.ItemsSource = unitsList.Where(u => u.Name.ToLower().Contains(txt)).ToList();
         }
 
 
-        // Заглушки для остальных кнопок (реализуйте по аналогии)
-        private void Add_Click(object sender, RoutedEventArgs e)
+        public void Update_Click(object sender, RoutedEventArgs e)
         {
-            try
-            {
-                using (SqlConnection conn = new SqlConnection(connectionString))
-                {
-                    conn.Open();
-                    string query = "";
-                    SqlCommand cmd = new SqlCommand();
-                    cmd.Connection = conn;
-
-                    if (currentMode == TableMode.Prices) // ДОБАВЛЕНИЕ ЦЕНЫ
-                    {
-                        // Проверка: выбран ли материал
-                        if (MaterialSelectBox.SelectedValue == null)
-                        {
-                            MessageBox.Show("Пожалуйста, выберите материал из списка!");
-                            return;
-                        }
-
-                        // Получаем ID из ComboBox
-                        int selectedMatId = (int)MaterialSelectBox.SelectedValue;
-
-                        query = @"INSERT INTO MaterialPrices (MaterialID, PriceWithoutNds, NdsPercent, ValidFrom, ValidTo, StockAmount) 
-                                  VALUES (@matId, @price, @nds, @from, @to, @stock)";
-
-                        cmd.Parameters.AddWithValue("@matId", selectedMatId);
-
-                        // Парсинг цены (желательно добавить try-parse проверку, но оставим как было для простоты)
-                        if (!decimal.TryParse(PriceBox.Text, out decimal priceVal)) { MessageBox.Show("Некорректная цена"); return; }
-                        cmd.Parameters.AddWithValue("@price", priceVal);
-
-                        // НДС
-                        decimal ndsVal = 0;
-                        if (decimal.TryParse(NdsBox.Text, out decimal parsedNds)) ndsVal = parsedNds;
-
-                        // Логика НДС (примерная, зависит от вашей бизнес-логики)
-                        cmd.Parameters.AddWithValue("@nds", ndsVal);
-
-                        cmd.Parameters.AddWithValue("@from", DateTime.Now);
-                        cmd.Parameters.AddWithValue("@to", DateTime.Now.AddYears(1));
-
-                        if (!int.TryParse(StockBox.Text, out int stockVal)) { MessageBox.Show("Некорректное количество"); return; }
-                        cmd.Parameters.AddWithValue("@stock", stockVal);
-                    }
-                    else if (currentMode == TableMode.Reference)
-                    {
-                        // ... (код без изменений) ...
-                        if (string.IsNullOrEmpty(UnitNameBox.Text) || UnitChoice.SelectedValue == null)
-                        {
-                            MessageBox.Show("Заполните название и выберите единицу измерения!"); return;
-                        }
-                        query = "INSERT INTO Materials (Name, UnitID, IsActive) VALUES (@name, @unit, @active)";
-                        cmd.Parameters.AddWithValue("@name", UnitNameBox.Text);
-                        cmd.Parameters.AddWithValue("@unit", UnitChoice.SelectedValue);
-                        cmd.Parameters.AddWithValue("@active", IsActiveCheckBox.IsChecked ?? true);
-                    }
-                    else if (currentMode == TableMode.Services)
-                    {
-                        // ... (код без изменений) ...
-                        query = "INSERT INTO Services (ServiceId, Name, BasePrice, AddMaterials, IsActive) VALUES (@serviceid, @name, @base, @add, @isactive)";
-                        // Внимание: ServiceId лучше сделать автоинкрементом в БД, но если ввод ручной:
-                        cmd.Parameters.AddWithValue("@serviceid", int.Parse(TarifIdBox.Text));
-                        cmd.Parameters.AddWithValue("@name", TarifNameBox.Text);
-                        cmd.Parameters.AddWithValue("@base", decimal.Parse(TarifBox.Text));
-                        cmd.Parameters.AddWithValue("@add", decimal.Parse(AdditionalMaterialsPriceBox.Text));
-                        cmd.Parameters.AddWithValue("@isactive", TarifIsActiveCheckBox.IsChecked ?? true);
-                    }
-                    else if (currentMode == TableMode.Units)
-                    {
-                        // ... (код без изменений) ...
-                        query = "INSERT INTO Units (Name) VALUES (@name)";
-                        cmd.Parameters.AddWithValue("@name", UnitBox.Text);
-                    }
-
-                    if (!string.IsNullOrEmpty(query))
-                    {
-                        cmd.CommandText = query;
-                        cmd.ExecuteNonQuery();
-                        MessageBox.Show("Данные успешно добавлены!");
-
-                        // Если добавили материал в справочнике, нужно обновить и комбобокс выбора материалов
-                        if (currentMode == TableMode.Reference) LoadMaterialsForCombobox();
-
-                        SwitchMode(currentMode); // Обновляем таблицу
-                    }
-                }
-            }
-            catch (Exception ex) { MessageBox.Show("Ошибка: " + ex.Message); }
+            SwitchMode(currentMode); 
+                                     
         }
 
-        // ... (Остальные методы: MaterialSelectBox_KeyUp, Edit, Delete и классы данных остаются)
-   
+        private void Grid_Click(object sender, RoutedEventArgs e)
+        {
+            if (MainGrid.SelectedItem == null) return;
+
+            EditWindow editWin = new EditWindow(this, currentMode, MainGrid.SelectedItem);
+            editWin.ShowDialog(); 
+        }
 
         private void Edit_Click(object sender, RoutedEventArgs e)
         {
-            // Здесь ваша логика UPDATE
-            MessageBox.Show("Функция редактирования для режима: " + currentMode.ToString());
+            if (MainGrid.SelectedItem != null)
+            {
+                Grid_Click(sender, null); 
+            }
+            else
+            {
+                MessageBox.Show("Выберите строку для редактирования!");
+            }
         }
-
-        private void Grid_Click(object sender, RoutedEventArgs e) { /* Двойной клик */ }
 
         private void Button_Click(object sender, RoutedEventArgs e)
         {
-            // MainWindow mw = new MainWindow(); mw.Show(); 
             this.Close();
         }
-
     }
+
+    // --- МОДЕЛИ ДАННЫХ ---
 
     public class MaterialPriceItem
     {
@@ -507,6 +480,9 @@ namespace Platezh.Views
         public decimal Nds { get; set; }
         public decimal TotalPrice { get; set; }
         public string IsActiveWord { get; set; }
+        public bool IsActiveMat { get; set; }
+        public bool IsActivePrice { get; set; }
+        public string IsActivePriceWord { get; set; }
     }
 
     public class ServiceItem
@@ -517,14 +493,16 @@ namespace Platezh.Views
         public decimal AddMaterials { get; set; }
         public decimal TotalPrice { get; set; }
         public string IsActiveWord { get; set; }
+        public bool IsActive { get; set; }
     }
 
     public class MaterialReferenceItem
     {
         public int MaterialID { get; set; }
         public string Name { get; set; }
-        public string UnitName { get; set; } 
+        public string UnitName { get; set; }
         public string IsActiveWord { get; set; }
+        public bool IsActive { get; set; }
     }
 
     public class UnitsItem

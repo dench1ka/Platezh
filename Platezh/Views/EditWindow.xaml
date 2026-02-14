@@ -22,7 +22,6 @@
             <Setter Property="FontWeight" Value="SemiBold"/>
             <Setter Property="Margin" Value="5"/>
             <Setter Property="Padding" Value="10,5"/>
-            <Setter Property="FontSize" Value="14"/>
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="Button">
@@ -45,31 +44,10 @@
             </Style.Triggers>
         </Style>
 
-        <Style TargetType="Label">
-            <Setter Property="Foreground" Value="#FF424242"/>
-            <Setter Property="FontWeight" Value="SemiBold"/>
-            <Setter Property="FontSize" Value="14"/>
-            <Setter Property="Margin" Value="0,5,0,2"/>
-            <Setter Property="Padding" Value="0,0,0,0"/>
-            <Setter Property="VerticalAlignment" Value="Center"/>
-        </Style>
-
         <Style TargetType="TextBox">
-            <Setter Property="BorderBrush" Value="#FFBDBDBD"/>
-            <Setter Property="Background" Value="White"/>
-            <Setter Property="Foreground" Value="#FF424242"/>
             <Setter Property="Height" Value="32"/>
             <Setter Property="Margin" Value="0,0,0,10"/>
             <Setter Property="Padding" Value="6"/>
-            <Setter Property="FontSize" Value="14"/>
-            <Setter Property="VerticalContentAlignment" Value="Center"/>
-            <Setter Property="Width" Value="320"/>
-        </Style>
-
-        <Style TargetType="ComboBox">
-            <Setter Property="Height" Value="32"/>
-            <Setter Property="Margin" Value="0,0,0,10"/>
-            <Setter Property="FontSize" Value="14"/>
             <Setter Property="VerticalContentAlignment" Value="Center"/>
         </Style>
     </Window.Resources>
@@ -80,100 +58,64 @@
             <ColumnDefinition Width="Auto"/>
         </Grid.ColumnDefinitions>
 
-        <Border Grid.Column="0" 
-                Background="White" 
-                CornerRadius="5" 
-                BorderBrush="#FFE0E0E0" 
-                BorderThickness="1" 
-                Padding="15">
+        <Border Grid.Column="0" Background="White" CornerRadius="5" BorderBrush="#FFE0E0E0" BorderThickness="1" Padding="15">
             <ScrollViewer VerticalScrollBarVisibility="Auto">
                 <StackPanel>
-                    <TextBlock Text="Редактирование данных" 
-                             FontWeight="Bold" 
-                             Foreground="#FF1976D2" 
-                             FontSize="16" 
-                             Margin="0,0,0,10"/>
+                    <TextBlock Text="Редактирование данных" FontWeight="Bold" Foreground="#FF1976D2" FontSize="16" Margin="0,0,0,10"/>
 
-                    <Label x:Name="SectionName" FontWeight="Bold" FontSize="14"/>
-                    <Label x:Name="NameItem" FontWeight="Bold" FontSize="14" Margin="0,0,0,15"/>
+                    <Label x:Name="SectionName" Content="Режим:" FontWeight="Bold" Foreground="Gray"/>
+                    <Label x:Name="NameItem" Content="Элемент" FontWeight="Bold" FontSize="18" Margin="0,0,0,15"/>
 
-                    <StackPanel HorizontalAlignment="Left">
-                        <Label Content="ID"/>
-                        <TextBox x:Name="IdBox"  IsReadOnly="True" />
+                    <Label Content="ID"/>
+                    <TextBox x:Name="IdBox" IsReadOnly="True" Background="#F0F0F0" Width="320" HorizontalAlignment="Left"/>
+
+                    <Label Content="Название"/>
+                    <TextBox x:Name="NameBox" Width="320" HorizontalAlignment="Left"/>
+
+                    <CheckBox x:Name="IsActiveCheck" Content="Запись активна (доступна для использования)" 
+                              FontWeight="SemiBold" Margin="0,5,0,15" Foreground="#FF1976D2"/>
+
+                    <StackPanel x:Name="MaterialsInputPanel">
+                        <Label Content="Количество на складе"/>
+                        <TextBox x:Name="StockBox" Width="320" HorizontalAlignment="Left"/>
+
+                        <Label Content="Цена без НДС"/>
+                        <TextBox x:Name="PriceWithoutNdsBox" Width="320" HorizontalAlignment="Left"/>
+
+                        <Grid HorizontalAlignment="Left" Width="320">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <StackPanel Grid.Column="0">
+                                <Label Content="НДС в %"/>
+                                <TextBox x:Name="NdsBox" Margin="0,0,5,10"/>
+                            </StackPanel>
+           
+                        </Grid>
                     </StackPanel>
 
-                    <StackPanel HorizontalAlignment="Left">
-                        <Label Content="Название" Margin="30,0,0,0"/>
-                        <TextBox x:Name="NameBox"/>
+                    <StackPanel x:Name="ServicesInputPanel">
+                        <Label Content="Тариф (базовая цена)"/>
+                        <TextBox x:Name="TarifBox" Width="320" HorizontalAlignment="Left"/>
+
+                        <Label Content="Стоимость доп. материалов"/>
+                        <TextBox x:Name="AdditionalMaterialsPriceBox" Width="320" HorizontalAlignment="Left"/>
                     </StackPanel>
 
-                    <StackPanel  x:Name="MaterialsInputPanel">
-                        <Label Content="Количество" Margin="0,0,0,0"/>
-                        <TextBox HorizontalAlignment="Left" x:Name="StockBox"/>
-
-                        <Label Content="Цена без НДС" Margin="0,0,0,0"/>
-                        <TextBox HorizontalAlignment="Left" x:Name="PriceWithoutNdsBox"/>
-
-                        <StackPanel  Orientation="Horizontal">
-                            <Label Content="НДС" Width="255" Margin="0,0,0,0"/>
-                            <Label Content="%/BYN" FontSize="12" Width="60"/>
-                        </StackPanel>
-                        <StackPanel  Orientation="Horizontal" VerticalAlignment="Center">
-                            <TextBox x:Name="NdsBox" Width="244" Margin="0,0,0,0"/>
-                            <ComboBox x:Name="NdsComboBox" Width="60" Margin="10,0,0,0" SelectionChanged="NdsChanged">
-                                <ComboBoxItem Content="%"/>
-                                <ComboBoxItem Content="BYN"/>
-                            </ComboBox>
-                        </StackPanel>
-                    </StackPanel>
-
-                    <StackPanel HorizontalAlignment="Left" x:Name="ServicesInputPanel">
-                        <Label Content="Тариф" Margin="0,0,0,0"/>
-                        <TextBox x:Name="TarifBox"/>
-
-                        <Label Content="Стоимость доп. материалов" Margin="0,0,0,0"/>
-                        <TextBox x:Name="AdditionalMaterialsPriceBox"/>
-                    </StackPanel>
-
-                    <StackPanel HorizontalAlignment="Left">
-                        <Label Content="Итоговая стоимость" Margin="0,0,0,0"/>
-                        <TextBox x:Name="TotalPriceBox" FontWeight="Bold"/>
-                    </StackPanel>
+                   
                 </StackPanel>
             </ScrollViewer>
         </Border>
 
-        <Border Grid.Column="1" 
-                Background="White" 
-                CornerRadius="5" 
-                BorderBrush="#FFE0E0E0" 
-                BorderThickness="1" 
-                Margin="10,0,0,0"
-                Padding="15"
-                Width="200">
+        <Border Grid.Column="1" Background="White" CornerRadius="5" BorderBrush="#FFE0E0E0" BorderThickness="1" Margin="10,0,0,0" Padding="15" Width="200" VerticalAlignment="Top">
             <StackPanel>
-                <TextBlock Text="Действия" 
-                         FontWeight="Bold" 
-                         Foreground="#FF1976D2" 
-                         FontSize="16" 
-                         Margin="0,0,0,15" 
-                         HorizontalAlignment="Center"/>
+                <TextBlock Text="Действия" FontWeight="Bold" Foreground="#FF1976D2" FontSize="16" Margin="0,0,0,15" HorizontalAlignment="Center"/>
 
-                <ComboBox x:Name="CalcChoice" Margin="0,0,0,15">
-                    <ComboBoxItem Content="Итоговую стоимость"/>
-                    <ComboBoxItem Content="Стоимость без НДС"/>
-                </ComboBox>
+                <Button x:Name="SaveBtn" Content="Сохранить" Height="45" Click="SaveChanges_Click"/>
 
-                <Button x:Name="CalcilationBtn" 
-                      Content="Перерасчитать" 
-                      Height="38" 
-                      Click="CalcilationBtn_Click" 
-                      Margin="0,0,0,10"/>
-
-                <Button x:Name="SaveBtn" 
-                      Content="Сохранить" 
-                      Height="38" 
-                      Click="SaveChanges_Click"/>
+                <TextBlock Text="Расчет итоговой суммы произойдет автоматически при сохранении." 
+                           TextWrapping="Wrap" FontSize="11" Foreground="Gray" Margin="0,10,0,0" TextAlignment="Center"/>
             </StackPanel>
         </Border>
     </Grid>
