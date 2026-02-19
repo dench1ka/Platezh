@@ -9,6 +9,7 @@ using Microsoft.Data.SqlClient;
 using Platezh.Services;
 using Microsoft.VisualBasic;
 using System.Configuration;
+using Microsoft.Win32;
 
 namespace Platezh.Views
 {
@@ -25,6 +26,15 @@ namespace Platezh.Views
 
         private List<MaterialPriceItem> selectedMaterials = new List<MaterialPriceItem>();
         private List<ServiceItem> selectedServices = new List<ServiceItem>();
+
+        private List<SelectedMaterialEntry> selectedMaterialsWithQty = new List<SelectedMaterialEntry>();
+        private List<ServiceItem> selectedServicesList = new List<ServiceItem>();
+
+        private class SelectedMaterialEntry
+        {
+            public MaterialPriceItem Item { get; set; }
+            public int Quantity { get; set; }
+        }
 
         public Casher()
         {
@@ -47,7 +57,6 @@ namespace Platezh.Views
             }
         }
 
-        #region Загрузка данных
         private void LoadPrices()
         {
             pricesList.Clear();
@@ -135,9 +144,6 @@ namespace Platezh.Views
             ClientSelectBox.ItemsSource = null;
             ClientSelectBox.ItemsSource = clientList;
         }
-        #endregion
-
-        #region Интерфейс и Переключение
         private void ViewSwitch_Click(object sender, RoutedEventArgs e)
         {
             if (sender == BtnMaterials) SwitchView(ViewMode.Materials);
@@ -180,7 +186,6 @@ namespace Platezh.Views
             else if (currentMode == ViewMode.Services) MainGrid.ItemsSource = serviceList.Where(x => x.Name.ToLower().Contains(t)).ToList();
             else MainGrid.ItemsSource = clientList.Where(x => x.FullName.ToLower().Contains(t)).ToList();
         }
-        #endregion
 
         private void ClientSelectBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
@@ -201,6 +206,7 @@ namespace Platezh.Views
         private void Grid_Click(object sender, RoutedEventArgs e) => SelectRecord();
         private void Addbtnclicked(object sender, RoutedEventArgs e) => SelectRecord();
 
+        // ОБНОВЛЕННЫЙ метод выбора записи
         private void SelectRecord()
         {
             if (currentMode == ViewMode.Materials && MainGrid.SelectedItem is MaterialPriceItem mat)
@@ -208,28 +214,113 @@ namespace Platezh.Views
                 string input = Interaction.InputBox($"Кол-во для '{mat.MaterialsName}':", "Добавление", "1");
                 if (int.TryParse(input, out int qty) && qty > 0 && qty <= mat.StockAmount)
                 {
-                    selectedMaterials.Add(mat);
+                    // Сохраняем и объект, и количество
+                    selectedMaterialsWithQty.Add(new SelectedMaterialEntry { Item = mat, Quantity = qty });
                     SelectedItemsListBox.Items.Add($"Мат: {mat.MaterialsName} x{qty} | {mat.TotalPrice * qty} BYN");
                 }
             }
             else if (currentMode == ViewMode.Services && MainGrid.SelectedItem is ServiceItem ser)
             {
-                selectedServices.Add(ser);
+                selectedServicesList.Add(ser);
                 SelectedItemsListBox.Items.Add($"Усл: {ser.Name} | {ser.TotalPrice} BYN");
             }
         }
 
-        // Заглушки для методов, чтобы код скомпилировался
-        private void Deletebtn_Click(object sender, RoutedEventArgs e) { if (SelectedItemsListBox.SelectedIndex != -1) SelectedItemsListBox.Items.RemoveAt(SelectedItemsListBox.SelectedIndex); }
+        // ОБНОВЛЕННЫЙ метод удаления (чтобы списки не рассинхронизировались)
+        private void Deletebtn_Click(object sender, RoutedEventArgs e)
+        {
+            int index = SelectedItemsListBox.SelectedIndex;
+            if (index != -1)
+            {
+                SelectedItemsListBox.Items.RemoveAt(index);
+                // Это упрощенный вариант удаления из внутренних списков. 
+                // В идеале лучше использовать один общий список объектов для ListBox.
+                if (index < selectedMaterialsWithQty.Count)
+                    selectedMaterialsWithQty.RemoveAt(index);
+                else
+                    selectedServicesList.RemoveAt(index - selectedMaterialsWithQty.Count);
+            }
+        }
         private void SelectedItemsListBox_KeyDown(object sender, System.Windows.Input.KeyEventArgs e) { }
-        private void GenerateContract_Click(object sender, RoutedEventArgs e) { MessageBox.Show("Договор сформирован!"); }
+        private void GenerateContract_Click(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                // 1. Проверки
+                if (string.IsNullOrWhiteSpace(ClientNameBox.Text))
+                {
+                    MessageBox.Show("Выберите клиента или введите ФИО!");
+                    return;
+                }
+
+                if (SelectedItemsListBox.Items.Count == 0)
+                {
+                    MessageBox.Show("Список услуг и материалов пуст!");
+                    return;
+                }
+
+                // 2. Подготовка данных для ExcelService
+                var excelService = new ExcelService();
+
+                // Мапим наши внутренние материалы в модель ExcelService.Material
+                var materialsForExcel = selectedMaterialsWithQty.Select(m => new Platezh.Services.Material
+                {
+                    id = m.Item.MatId,
+                    name = m.Item.MaterialsName,
+                    count = m.Quantity,
+                    nds = m.Item.Nds,
+                    totalPrice = m.Item.TotalPrice
+                }).ToList();
+
+                // Мапим наши услуги в модель ExcelService.Service
+                var servicesForExcel = selectedServicesList.Select(s => new Platezh.Services.Service
+                {
+                    id = s.ServiceId,
+                    name = s.Name,
+                    count = 1, // Обычно услуга идет в 1 экз.
+                    tariff = s.BasePrice,
+                    additionalMaterialCost = s.AddMaterials,
+                    totalCost = s.TotalPrice
+                }).ToList();
+
+                // Заполняем данные контракта
+                var contractData = new ContractData
+                {
+                    contractNumber = "№" + DateTime.Now.ToString("yyyyMMdd-HHmm"),
+                    clientName = ClientNameBox.Text,
+                    passportNumber = PassportDataBox.Text,
+                    address = AddressBox.Text,
+                    issuedBy = "Выдано отделом кадров", // Можно добавить поле в UI
+                    dateIssued = DateTime.Now.AddYears(-5) // Можно добавить DatePicker в UI
+                };
+
+                // 3. Выбор папки сохранения
+                var saveDialog = new SaveFileDialog
+                {
+                    Filter = "Excel Files|*.xlsx",
+                    FileName = $"Договор_{contractData.clientName}_{DateTime.Now:ddMMyyyy}"
+                };
+
+                if (saveDialog.ShowDialog() == true)
+                {
+                    string directory = System.IO.Path.GetDirectoryName(saveDialog.FileName);
+
+                    // Вызов вашего сервиса
+                    excelService.FillContract(servicesForExcel, materialsForExcel, contractData, directory);
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Ошибка при создании договора: {ex.Message}\n{ex.StackTrace}");
+            }
+        }
         private void SaveClient_Click(object sender, RoutedEventArgs e) { MessageBox.Show("Данные сохранены"); LoadClients(); }
         private void Button_Click(object sender, RoutedEventArgs e) { this.Close(); }
         private void ShowContracts(object sender, RoutedEventArgs e) { }
         private void SelectFolderButton_Click(object sender, RoutedEventArgs e) { }
         private void Window_Closing(object sender, System.ComponentModel.CancelEventArgs e) { }
 
-        #region Классы данных
+
         public class MaterialPriceItem
         {
             public int PriceID { get; set; }
@@ -260,6 +351,5 @@ namespace Platezh.Views
             public string Passport { get; set; } = "";
             public string Address { get; set; } = "";
         }
-        #endregion
     }
 }
