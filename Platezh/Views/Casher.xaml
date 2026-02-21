@@ -39,13 +39,14 @@
             </StackPanel>
 
             <Label Grid.Row="1" x:Name="CurrentTableTitle" Content="Материалы" FontSize="20" FontWeight="Bold"/>
+
             <Border Grid.Row="2" CornerRadius="5" BorderBrush="#FFE0E0E0" BorderThickness="1" Background="White">
                 <DataGrid x:Name="MainGrid" 
-                  AutoGenerateColumns="False" 
-                  CanUserAddRows="False" 
-                  IsReadOnly="True" 
-                  SelectionChanged="MainGrid_SelectionChanged"
-                  MouseDoubleClick="Grid_Click">
+                          AutoGenerateColumns="False" 
+                          CanUserAddRows="False" 
+                          IsReadOnly="True" 
+                          SelectionChanged="MainGrid_SelectionChanged"
+                          MouseDoubleClick="Grid_Click">
                 </DataGrid>
             </Border>
         </Grid>
@@ -53,35 +54,61 @@
         <Border Grid.Column="1" Background="White" CornerRadius="5" BorderBrush="#FFE0E0E0" BorderThickness="1" Margin="10,10,0,10" Padding="12">
             <ScrollViewer VerticalScrollBarVisibility="Auto">
                 <StackPanel>
-                    <TextBlock Text="Выбранные элементы" FontWeight="Bold" Foreground="#FF1976D2" FontSize="16" Margin="0,0,0,10"/>
-                    <ListBox x:Name="SelectedItemsListBox" Height="180" KeyDown="SelectedItemsListBox_KeyDown"/>
 
-                    <UniformGrid Columns="2" Margin="0,8,0,15">
-                        <Button x:Name="addNewRecord" Content="В список" Click="Addbtnclicked"/>
-                        <Button x:Name="deleteRecord" Content="Убрать" Click="Deletebtn_Click" Background="#FFD32F2F"/>
-                    </UniformGrid>
+                    <StackPanel x:Name="BasketPanel">
+                        <TextBlock Text="Выбранные элементы" FontWeight="Bold" Foreground="#FF1976D2" FontSize="16" Margin="0,0,0,10"/>
+                        <ListBox x:Name="SelectedItemsListBox" Height="180" KeyDown="SelectedItemsListBox_KeyDown"/>
 
-                    <Separator Margin="0,5,0,15"/>
-                    <TextBlock Text="Данные клиента" FontWeight="Bold" Foreground="#FF1976D2" FontSize="16" Margin="0,0,0,10"/>
+                        <UniformGrid Columns="2" Margin="0,8,0,15">
+                            <Button x:Name="addNewRecord" Content="В список" Click="Addbtnclicked"/>
+                            <Button x:Name="deleteRecord" Content="Убрать" Click="Deletebtn_Click" Background="#FFD32F2F"/>
+                        </UniformGrid>
 
-                    <Label Content="Выберите из базы (опционально):"/>
-                    <ComboBox x:Name="ClientSelectBox" DisplayMemberPath="FullName" SelectionChanged="ClientSelectBox_SelectionChanged" Margin="0,0,0,10"/>
+                        <Separator Margin="0,5,0,15"/>
+                        <TextBlock Text="Оформление договора" FontWeight="Bold" Foreground="#FF1976D2" FontSize="16" Margin="0,0,0,10"/>
 
-                    <Label Content="Номер договора:"/>
-                    <TextBox x:Name="ContractNumberBox"/>
+                        <Label Content="Номер договора (если пусто - автогенерация):"/>
+                        <TextBox x:Name="ContractNumberBox" Margin="0,0,0,5"/>
 
-                    <Label Content="ФИО клиента:"/>
-                    <TextBox x:Name="ClientNameBox"/>
+                        <Label Content="Выберите клиента из базы:"/>
+                        <ComboBox x:Name="ClientSelectBox" 
+                                  DisplayMemberPath="FullName" 
+                                  SelectedValuePath="id"
+                                  IsEditable="True"
+                                  StaysOpenOnEdit="True"
+                                  TextSearch.TextPath="FullName"
+                                  Margin="0,3,0,15"/>
 
-                    <Label Content="Паспортные данные:"/>
-                    <TextBox x:Name="PassportDataBox"/>
-                    <Label Content="Адрес клиента:"/>
-                    <TextBox x:Name="AddressBox"/>
-                    <Button x:Name="SaveClientBtn" Content="Обновить/Сохранить клиента" Click="SaveClient_Click" Background="#FF43A047"/>
+                        <Button x:Name="generateContract" Height="45" Content="Сформировать договор" Click="GenerateContract_Click" FontWeight="Bold"/>
+                    </StackPanel>
+
+                    <StackPanel x:Name="ClientFormPanel" Visibility="Collapsed">
+                        <TextBlock Text="Данные клиента" FontWeight="Bold" Foreground="#FF1976D2" FontSize="16" Margin="0,0,0,10"/>
+
+                        <Label Content="Фамилия:"/>
+                        <TextBox x:Name="SurnameBox" Margin="0,0,0,5"/>
+
+                        <Label Content="Имя:"/>
+                        <TextBox x:Name="NameBox" Margin="0,0,0,5"/>
+
+                        <Label Content="Отчество:"/>
+                        <TextBox x:Name="FatherNameBox" Margin="0,0,0,5"/>
+
+                        <Label Content="Номер паспорта:"/>
+                        <TextBox x:Name="PassportDataBox" Margin="0,0,0,5"/>
+
+                        <Label Content="Кем выдан:"/>
+                        <TextBox x:Name="IssuedByBox" Margin="0,0,0,5"/>
+
+                        <Label Content="Адрес проживания:"/>
+                        <TextBox x:Name="AddressBox" Margin="0,0,0,5"/>
+
+                        <Button x:Name="SaveClientBtn" Content="Обновить/Сохранить клиента" Click="SaveClient_Click" Background="#FF43A047" Margin="0,15,0,0" Height="40" FontWeight="Bold"/>
+                    </StackPanel>
 
                     <Separator Margin="0,15"/>
-                    <Button x:Name="generateContract" Height="45" Content="Сформировать договор" Click="GenerateContract_Click" FontWeight="Bold"/>
                     <Button Content="Назад" Click="Button_Click" Background="#FF757575"/>
+
                 </StackPanel>
             </ScrollViewer>
         </Border>

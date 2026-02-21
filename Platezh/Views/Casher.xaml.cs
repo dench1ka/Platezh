@@ -62,26 +62,68 @@ namespace Platezh.Views
         {
             currentMode = mode;
 
-            // Очистка таблицы
+            // 1. Очистка таблицы перед сменой режима
             MainGrid.ItemsSource = null;
             MainGrid.Columns.Clear();
 
+            // 2. Управление видимостью панелей в зависимости от режима
+            if (mode == ViewMode.Clients)
+            {
+                // Показываем форму добавления клиента, скрываем корзину и договор
+                if (BasketPanel != null) BasketPanel.Visibility = Visibility.Collapsed;
+                if (ClientFormPanel != null) ClientFormPanel.Visibility = Visibility.Visible;
+            }
+            else
+            {
+                // Показываем корзину (для материалов/услуг), скрываем форму клиента
+                if (BasketPanel != null) BasketPanel.Visibility = Visibility.Visible;
+                if (ClientFormPanel != null) ClientFormPanel.Visibility = Visibility.Collapsed;
+            }
+
+            // 3. Загрузка данных и отрисовка колонок
             switch (mode)
             {
                 case ViewMode.Materials:
                     CurrentTableTitle.Content = "Материалы";
-                    LoadPrices(); // Метод сам сформирует словарь и вызовет CreateColumns
+                    LoadPrices();
                     break;
 
                 case ViewMode.Services:
                     CurrentTableTitle.Content = "Услуги";
-                    LoadServices(); // Метод сам сформирует словарь и вызовет CreateColumns
+                    LoadServices();
                     break;
 
                 case ViewMode.Clients:
                     CurrentTableTitle.Content = "База клиентов";
-                    LoadClients(); // Метод сам сформирует словарь и вызовет CreateColumns
+                    LoadClients();
                     break;
+            }
+        }
+
+        private void ClearAllFields()
+        {
+            selectedMaterialsWithQty.Clear();
+            selectedServicesList.Clear();
+            SelectedItemsListBox.Items.Clear();
+
+            // Очистка формы клиента
+            SurnameBox.Clear();
+            NameBox.Clear();
+            FatherNameBox.Clear();
+            PassportDataBox.Clear();
+            IssuedByBox.Clear();
+            AddressBox.Clear();
+
+            ContractNumberBox.Clear();
+            ClientSelectBox.SelectedItem = null;
+            ClientSelectBox.Text = ""; // Очищаем текст поиска в комбобоксе
+
+            LoadPrices();
+            if (currentMode == ViewMode.Materials)
+            {
+                MainGrid.ItemsSource = null;
+                MainGrid.ItemsSource = pricesList;
+                MainGrid.Items.Refresh();
             }
         }
 
@@ -274,12 +316,12 @@ namespace Platezh.Views
 
         private void ClientSelectBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
-            if (ClientSelectBox.SelectedItem is ClientItem client)
-            {
-                ClientNameBox.Text = client.FullName;
-                PassportDataBox.Text = client.Passport;
-                AddressBox.Text = client.Address;
-            }
+            //if (ClientSelectBox.SelectedItem is ClientItem client)
+            //{
+            //    ClienNameBox.Text = client.FullName;
+            //    PassportDataBox.Text = client.Passport;
+            //    AddressBox.Text = client.Address;
+            //}
         }
 
         private void MainGrid_SelectionChanged(object sender, SelectionChangedEventArgs e)
@@ -382,60 +424,40 @@ namespace Platezh.Views
             }
         }
         private void SelectedItemsListBox_KeyDown(object sender, System.Windows.Input.KeyEventArgs e) { }
-        // 1. Вспомогательный метод для полной очистки полей и списков
-        private void ClearAllFields()
-        {
-            // Очистка списков выбранного
-            selectedMaterialsWithQty.Clear();
-            selectedServicesList.Clear();
-            SelectedItemsListBox.Items.Clear();
-
-            // Очистка текстовых полей клиента
-            ClientNameBox.Clear();
-            PassportDataBox.Clear();
-            AddressBox.Clear();
-            ClientSelectBox.SelectedItem = null;
-
-            // Перезагрузка данных из БД, чтобы вернуть реальные остатки (откат визуальных изменений)
-            LoadPrices();
-            if (currentMode == ViewMode.Materials)
-            {
-                MainGrid.ItemsSource = null;
-                MainGrid.ItemsSource = pricesList;
-                MainGrid.Items.Refresh();
-            }
-        }
 
         private void GenerateContract_Click(object sender, RoutedEventArgs e)
         {
             try
             {
-                // 1. Проверки перед началом
-                if (string.IsNullOrWhiteSpace(ClientNameBox.Text))
+                // 1. ПРОВЕРКИ ПЕРЕД НАЧАЛОМ
+
+                // Проверка выбора клиента
+                var selectedClient = ClientSelectBox.SelectedItem as ClientItem;
+                if (selectedClient == null)
                 {
-                    MessageBox.Show("Выберите клиента или введите ФИО!", "Внимание", MessageBoxButton.OK, MessageBoxImage.Warning);
+                    MessageBox.Show("Пожалуйста, выберите клиента из выпадающего списка!", "Внимание", MessageBoxButton.OK, MessageBoxImage.Warning);
                     return;
                 }
 
-                // ПРОВЕРКА ПО ЕДИНОМУ СПИСКУ КОРЗИНЫ
+                // Проверка корзины
                 if (basket.Count == 0)
                 {
-                    MessageBox.Show("Список услуг и материалов пуст!", "Внимание", MessageBoxButton.OK, MessageBoxImage.Warning);
+                    MessageBox.Show("Корзина пуста! Добавьте услуги или материалы.", "Внимание", MessageBoxButton.OK, MessageBoxImage.Warning);
                     return;
                 }
 
-                // 2. Выбор папки для сохранения
+                // 2. ВЫБОР ПУТИ СОХРАНЕНИЯ
                 var saveDialog = new SaveFileDialog
                 {
                     Filter = "Excel Files|*.xlsx",
-                    FileName = $"Договор_{ClientNameBox.Text}_{DateTime.Now:ddMMyyyy}"
+                    FileName = $"Договор_{selectedClient.Surname}_{DateTime.Now:ddMMyyyy_HHmm}"
                 };
 
                 if (saveDialog.ShowDialog() != true) return;
+                string filePath = saveDialog.FileName;
+                string directory = System.IO.Path.GetDirectoryName(filePath);
 
-                string directory = System.IO.Path.GetDirectoryName(saveDialog.FileName);
-
-                // 3. БЕЗОПАСНОЕ СПИСАНИЕ СО СКЛАДА (Транзакция)
+                // 3. ТРАНЗАКЦИЯ: СПИСАНИЕ СО СКЛАДА В БД
                 using (SqlConnection conn = new SqlConnection(connectionString))
                 {
                     conn.Open();
@@ -443,48 +465,47 @@ namespace Platezh.Views
                     {
                         try
                         {
-                            // Итерируемся только по материалам в корзине
-                            foreach (var entry in basket.Where(x => x.IsMaterial))
+                            foreach (var item in basket.Where(x => x.IsMaterial))
                             {
-                                // Проверка реального остатка в БД
-                                string checkQuery = "SELECT StockAmount FROM MaterialPrices WHERE PriceID = @id";
-                                int currentStock = 0;
-                                using (SqlCommand cmdCheck = new SqlCommand(checkQuery, conn, transaction))
+                                // Проверяем актуальный остаток в базе прямо перед списанием
+                                string checkSql = "SELECT StockAmount FROM MaterialPrices WHERE PriceID = @id";
+                                int dbStock = 0;
+                                using (SqlCommand cmdCheck = new SqlCommand(checkSql, conn, transaction))
                                 {
-                                    cmdCheck.Parameters.AddWithValue("@id", entry.Material.PriceID);
-                                    currentStock = Convert.ToInt32(cmdCheck.ExecuteScalar());
+                                    cmdCheck.Parameters.AddWithValue("@id", item.Material.PriceID);
+                                    dbStock = (int)cmdCheck.ExecuteScalar();
                                 }
 
-                                if (currentStock < entry.Quantity)
+                                if (dbStock < item.Quantity)
                                 {
-                                    throw new Exception($"Недостаточно материала '{entry.Material.MaterialsName}'.\n" +
-                                                        $"На складе: {currentStock}, в корзине: {entry.Quantity}");
+                                    throw new Exception($"Недостаточно товара '{item.Material.MaterialsName}' на складе.\n" +
+                                                        $"Доступно: {dbStock}, требуется: {item.Quantity}");
                                 }
 
-                                // Списание
-                                string updateQuery = "UPDATE MaterialPrices SET StockAmount = StockAmount - @qty WHERE PriceID = @id";
-                                using (SqlCommand cmdUpdate = new SqlCommand(updateQuery, conn, transaction))
+                                // Уменьшаем остаток
+                                string updateSql = "UPDATE MaterialPrices SET StockAmount = StockAmount - @qty WHERE PriceID = @id";
+                                using (SqlCommand cmdUpdate = new SqlCommand(updateSql, conn, transaction))
                                 {
-                                    cmdUpdate.Parameters.AddWithValue("@qty", entry.Quantity);
-                                    cmdUpdate.Parameters.AddWithValue("@id", entry.Material.PriceID);
+                                    cmdUpdate.Parameters.AddWithValue("@qty", item.Quantity);
+                                    cmdUpdate.Parameters.AddWithValue("@id", item.Material.PriceID);
                                     cmdUpdate.ExecuteNonQuery();
                                 }
                             }
+                            // Если всё ок — фиксируем изменения в БД
                             transaction.Commit();
                         }
                         catch (Exception ex)
                         {
                             transaction.Rollback();
-                            ClearAllFields();
-                            throw new Exception("Ошибка транзакции (данные в БД не изменены): " + ex.Message);
+                            throw new Exception("Ошибка при обновлении склада: " + ex.Message);
                         }
                     }
                 }
 
-                // 4. ПОДГОТОВКА СПИСКОВ И ГЕНЕРАЦИЯ EXCEL (Разделяем общую корзину на два списка для сервиса)
+                // 4. ПОДГОТОВКА ДАННЫХ ДЛЯ EXCEL
                 var excelService = new ExcelService();
 
-                // Фильтруем материалы
+                // Преобразование материалов из корзины в формат для ExcelService
                 var materialsForExcel = basket
                     .Where(b => b.IsMaterial)
                     .Select(m => new Platezh.Services.Material
@@ -493,10 +514,10 @@ namespace Platezh.Views
                         name = m.Material.MaterialsName,
                         count = m.Quantity,
                         nds = m.Material.Nds,
-                        totalPrice = m.Material.TotalPrice
+                        totalPrice = m.Material.TotalPrice * m.Quantity
                     }).ToList();
 
-                // Фильтруем услуги
+                // Преобразование услуг из корзины в формат для ExcelService
                 var servicesForExcel = basket
                     .Where(b => !b.IsMaterial)
                     .Select(s => new Platezh.Services.Service
@@ -509,30 +530,123 @@ namespace Platezh.Views
                         totalCost = s.Service.TotalPrice
                     }).ToList();
 
+                // Формирование общих данных договора
                 var contractData = new ContractData
                 {
-                    contractNumber = "№" + DateTime.Now.ToString("yyyyMMdd-HHmm"),
-                    clientName = ClientNameBox.Text,
-                    passportNumber = PassportDataBox.Text,
-                    address = AddressBox.Text,
-                    issuedBy = "Система",
-                    dateIssued = DateTime.Now
+                    // Если номер договора не введён вручную — генерируем автоматически
+                    contractNumber = string.IsNullOrWhiteSpace(ContractNumberBox.Text)
+                                     ? "№" + DateTime.Now.ToString("yyyyMMdd-HHmm")
+                                     : ContractNumberBox.Text,
+                    clientName = selectedClient.FullName,
+                    passportNumber = selectedClient.Passport,
+                    address = selectedClient.Address,
+                    issuedBy = selectedClient.IssuedBy,
+                    dateIssued = selectedClient.IssuedDate ?? DateTime.Now
                 };
 
+                // 5. ГЕНЕРАЦИЯ ФАЙЛА
+                // Предполагается, что FillContract принимает (List<Service>, List<Material>, ContractData, string path)
                 excelService.FillContract(servicesForExcel, materialsForExcel, contractData, directory);
 
-                // 5. УСПЕШНОЕ ЗАВЕРШЕНИЕ
-                MessageBox.Show("Договор успешно сформирован!", "Успех", MessageBoxButton.OK, MessageBoxImage.Information);
+                // 6. ФИНАЛИЗАЦИЯ
+                MessageBox.Show($"Договор {contractData.contractNumber} успешно сформирован и сохранен!",
+                                "Успех", MessageBoxButton.OK, MessageBoxImage.Information);
+
+                // Полная очистка формы для следующего клиента
                 ClearAllFields();
+
+                // Обновляем таблицу, чтобы увидеть новые остатки
+                if (currentMode == ViewMode.Materials) LoadPrices();
             }
             catch (Exception ex)
             {
-                MessageBox.Show(ex.Message, "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
-                ClearAllFields();
+                MessageBox.Show("Ошибка формирования договора: " + ex.Message, "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
-        private void SaveClient_Click(object sender, RoutedEventArgs e) { MessageBox.Show("Данные сохранены"); LoadClients(); }
-        private void Button_Click(object sender, RoutedEventArgs e) { this.Close(); }
+
+
+        private void SaveClient_Click(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                // 1. Валидация (минимальная проверка на заполнение)
+                if (string.IsNullOrWhiteSpace(SurnameBox.Text) || string.IsNullOrWhiteSpace(NameBox.Text))
+                {
+                    MessageBox.Show("Фамилия и Имя обязательны для заполнения!", "Внимание", MessageBoxButton.OK, MessageBoxImage.Warning);
+                    return;
+                }
+
+                // Определяем: мы редактируем существующего или создаем нового?
+                var selectedClient = MainGrid.SelectedItem as ClientItem;
+                bool isUpdate = selectedClient != null;
+
+                using (SqlConnection conn = new SqlConnection(connectionString))
+                {
+                    conn.Open();
+                    string sql;
+
+                    if (isUpdate)
+                    {
+                        // SQL для обновления
+                        sql = @"UPDATE Clients 
+                        SET Name = @name, Surname = @surname, FatherName = @father, 
+                            PassportNumber = @pass, IssuedBy = @issued, Address = @addr
+                        WHERE ClientID = @id";
+                    }
+                    else
+                    {
+                        // SQL для вставки нового
+                        sql = @"INSERT INTO Clients (Name, Surname, FatherName, PassportNumber, IssuedBy, Address) 
+                        VALUES (@name, @surname, @father, @pass, @issued, @addr)";
+                    }
+
+                    using (SqlCommand cmd = new SqlCommand(sql, conn))
+                    {
+                        // Привязываем параметры (защита от SQL-инъекций)
+                        cmd.Parameters.AddWithValue("@name", NameBox.Text.Trim());
+                        cmd.Parameters.AddWithValue("@surname", SurnameBox.Text.Trim());
+                        cmd.Parameters.AddWithValue("@father", FatherNameBox.Text.Trim());
+                        cmd.Parameters.AddWithValue("@pass", PassportDataBox.Text.Trim());
+                        cmd.Parameters.AddWithValue("@issued", IssuedByBox.Text.Trim());
+                        cmd.Parameters.AddWithValue("@addr", AddressBox.Text.Trim());
+
+                        if (isUpdate)
+                        {
+                            cmd.Parameters.AddWithValue("@id", selectedClient.id);
+                        }
+
+                        cmd.ExecuteNonQuery();
+                    }
+                }
+
+                MessageBox.Show(isUpdate ? "Данные клиента успешно обновлены" : "Новый клиент успешно добавлен в базу",
+                                "Успех", MessageBoxButton.OK, MessageBoxImage.Information);
+
+                // 2. Очищаем поля формы
+                ClearClientForm();
+
+                // 3. ПЕРЕЗАГРУЖАЕМ данные, чтобы они появились везде (в таблице и в ComboBox)
+                LoadClients();
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show("Ошибка при сохранении в базу данных: " + ex.Message, "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
+        // Вспомогательный метод для очистки только полей клиента
+        private void ClearClientForm()
+        {
+            SurnameBox.Clear();
+            NameBox.Clear();
+            FatherNameBox.Clear();
+            PassportDataBox.Clear();
+            IssuedByBox.Clear();
+            AddressBox.Clear();
+            MainGrid.SelectedItem = null; // Снимаем выделение, чтобы следующий клик "Сохранить" создавал нового
+        }
+
+         private void Button_Click(object sender, RoutedEventArgs e) { this.Close(); }
         private void ShowContracts(object sender, RoutedEventArgs e) { }
         private void SelectFolderButton_Click(object sender, RoutedEventArgs e) { }
         private void Window_Closing(object sender, System.ComponentModel.CancelEventArgs e) { }
