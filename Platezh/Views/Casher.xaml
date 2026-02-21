@@ -40,7 +40,13 @@
 
             <Label Grid.Row="1" x:Name="CurrentTableTitle" Content="Материалы" FontSize="20" FontWeight="Bold"/>
             <Border Grid.Row="2" CornerRadius="5" BorderBrush="#FFE0E0E0" BorderThickness="1" Background="White">
-                <DataGrid x:Name="MainGrid" SelectionChanged="MainGrid_SelectionChanged" MouseDoubleClick="Grid_Click"/>
+                <DataGrid x:Name="MainGrid" 
+                  AutoGenerateColumns="False" 
+                  CanUserAddRows="False" 
+                  IsReadOnly="True" 
+                  SelectionChanged="MainGrid_SelectionChanged"
+                  MouseDoubleClick="Grid_Click">
+                </DataGrid>
             </Border>
         </Grid>
 

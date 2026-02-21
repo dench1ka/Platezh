@@ -23,6 +23,7 @@ namespace Platezh.Views
         private List<MaterialPriceItem> pricesList = new List<MaterialPriceItem>();
         private List<ServiceItem> serviceList = new List<ServiceItem>();
         private List<ClientItem> clientList = new List<ClientItem>();
+        private List<BasketItem> basket = new List<BasketItem>();
 
         private List<MaterialPriceItem> selectedMaterials = new List<MaterialPriceItem>();
         private List<ServiceItem> selectedServices = new List<ServiceItem>();
@@ -57,6 +58,53 @@ namespace Platezh.Views
             }
         }
 
+        private void SwitchView(ViewMode mode)
+        {
+            currentMode = mode;
+
+            // Очистка таблицы
+            MainGrid.ItemsSource = null;
+            MainGrid.Columns.Clear();
+
+            switch (mode)
+            {
+                case ViewMode.Materials:
+                    CurrentTableTitle.Content = "Материалы";
+                    LoadPrices(); // Метод сам сформирует словарь и вызовет CreateColumns
+                    break;
+
+                case ViewMode.Services:
+                    CurrentTableTitle.Content = "Услуги";
+                    LoadServices(); // Метод сам сформирует словарь и вызовет CreateColumns
+                    break;
+
+                case ViewMode.Clients:
+                    CurrentTableTitle.Content = "База клиентов";
+                    LoadClients(); // Метод сам сформирует словарь и вызовет CreateColumns
+                    break;
+            }
+        }
+
+        private void CreateColumns(Dictionary<string, string> headers)
+        {
+            MainGrid.Columns.Clear();
+            foreach (var h in headers)
+            {
+                var col = new DataGridTextColumn
+                {
+                    Header = h.Value,
+                    Binding = new Binding(h.Key),
+                    Width = new DataGridLength(1, DataGridLengthUnitType.Star)
+                };
+
+                // Если в ключе есть "Valid" или "Date", применяем формат даты
+                if (h.Key.Contains("Valid") || h.Key.Contains("Date"))
+                    col.Binding.StringFormat = "dd.MM.yyyy";
+
+                MainGrid.Columns.Add(col);
+            }
+        }
+
         private void LoadPrices()
         {
             pricesList.Clear();
@@ -64,11 +112,11 @@ namespace Platezh.Views
             {
                 conn.Open();
                 string query = @"SELECT PriceID, MaterialPrices.MaterialID as MatId, Materials.Name as MatName, Units.Name as UnitName, 
-                               PriceWithoutNds, NdsPercent, ValidFrom, ValidTo, StockAmount, 
-                               Materials.IsActive as MatActive, MaterialPrices.IsActive as PriceActive 
-                               FROM MaterialPrices 
-                               LEFT JOIN Materials ON MaterialPrices.MaterialID = Materials.MaterialID 
-                               LEFT JOIN Units ON Materials.UnitID = Units.UnitID";
+                       PriceWithoutNds, NdsPercent, ValidFrom, ValidTo, StockAmount, 
+                       Materials.IsActive as MatActive, MaterialPrices.IsActive as PriceActive 
+                       FROM MaterialPrices 
+                       LEFT JOIN Materials ON MaterialPrices.MaterialID = Materials.MaterialID 
+                       LEFT JOIN Units ON Materials.UnitID = Units.UnitID";
 
                 using (SqlCommand cmd = new SqlCommand(query, conn))
                 using (SqlDataReader reader = cmd.ExecuteReader())
@@ -94,6 +142,23 @@ namespace Platezh.Views
                     }
                 }
             }
+
+            // Формируем словарь для Материалов
+            var headers = new Dictionary<string, string>
+            {
+                { "PriceID", "ID Цены" },
+                { "MatId", "ID Мат." },
+                { "MaterialsName", "Наименование" },
+                { "UnitName", "Ед. изм." },
+                { "StockAmount", "Остаток" },
+                { "PriceWithoutNds", "Цена (без НДС)" },
+                { "Nds", "НДС (сумма)" },
+                { "TotalPrice", "Итого (BYN)" },
+                { "IsActiveWord", "Статус" }
+            };
+
+            CreateColumns(headers);
+            MainGrid.ItemsSource = pricesList.ToList();
         }
 
         private void LoadServices()
@@ -120,6 +185,20 @@ namespace Platezh.Views
                     }
                 }
             }
+
+            // Формируем словарь для Услуг
+            var headers = new Dictionary<string, string>
+            {
+                { "ServiceId", "ID Услуги" },
+                { "Name", "Название услуги" },
+                { "BasePrice", "Тариф (работа)" },
+                { "AddMaterials", "Мат. затраты" },
+                { "TotalPrice", "Итоговая цена" },
+                { "IsActiveWord", "Доступность" }
+            };
+
+            CreateColumns(headers);
+            MainGrid.ItemsSource = serviceList.ToList();
         }
 
         private void LoadClients()
@@ -128,21 +207,54 @@ namespace Platezh.Views
             using (SqlConnection conn = new SqlConnection(connectionString))
             {
                 conn.Open();
-                string sql = "SELECT id_client, fio, passport, address FROM Clients";
+                // Используем ваш запрос (убрал TOP 1000 для простоты, но можно оставить)
+                string sql = @"SELECT [ClientID], [Name], [Surname], [FatherName], 
+                              [PassportNumber], [IssuedBy], [IssuedDate], [Address] 
+                       FROM [Clients]";
+
                 using (SqlCommand cmd = new SqlCommand(sql, conn))
                 using (SqlDataReader r = cmd.ExecuteReader())
                 {
-                    while (r.Read()) clientList.Add(new ClientItem
+                    while (r.Read())
                     {
-                        id = r.GetInt32(0),
-                        FullName = r.GetString(1),
-                        Passport = r.IsDBNull(2) ? "—" : r.GetString(2),
-                        Address = r.IsDBNull(3) ? "—" : r.GetString(3)
-                    });
+                        clientList.Add(new ClientItem
+                        {
+                            id = r.GetInt32(r.GetOrdinal("ClientID")),
+                            Name = r.IsDBNull(r.GetOrdinal("Name")) ? "" : r.GetString(r.GetOrdinal("Name")),
+                            Surname = r.IsDBNull(r.GetOrdinal("Surname")) ? "" : r.GetString(r.GetOrdinal("Surname")),
+                            FatherName = r.IsDBNull(r.GetOrdinal("FatherName")) ? "" : r.GetString(r.GetOrdinal("FatherName")),
+                            Passport = r.IsDBNull(r.GetOrdinal("PassportNumber")) ? "—" : r.GetString(r.GetOrdinal("PassportNumber")),
+                            IssuedBy = r.IsDBNull(r.GetOrdinal("IssuedBy")) ? "—" : r.GetString(r.GetOrdinal("IssuedBy")),
+                            IssuedDate = r.IsDBNull(r.GetOrdinal("IssuedDate")) ? (DateTime?)null : r.GetDateTime(r.GetOrdinal("IssuedDate")),
+                            Address = r.IsDBNull(r.GetOrdinal("Address")) ? "—" : r.GetString(r.GetOrdinal("Address"))
+                        });
+                    }
                 }
             }
+
+            // Обновляем комбобокс (он будет использовать свойство FullName)
             ClientSelectBox.ItemsSource = null;
             ClientSelectBox.ItemsSource = clientList;
+            ClientSelectBox.DisplayMemberPath = "FullName"; // Указываем, что показывать в списке
+
+            // Формируем таблицу, если выбран режим клиентов
+            if (currentMode == ViewMode.Clients)
+            {
+                var headers = new Dictionary<string, string>
+                {
+                    { "id", "ID" },
+                    { "Surname", "Фамилия" },
+                    { "Name", "Имя" },
+                    { "FatherName", "Отчество" },
+                    { "Passport", "№ Паспорта" },
+                    { "IssuedBy", "Кем выдан" },
+                    { "IssuedDate", "Дата выдачи" },
+                    { "Address", "Адрес" }
+                };
+
+                CreateColumns(headers);
+                MainGrid.ItemsSource = clientList.ToList();
+            }
         }
         private void ViewSwitch_Click(object sender, RoutedEventArgs e)
         {
@@ -151,33 +263,6 @@ namespace Platezh.Views
             else if (sender == BtnClients) SwitchView(ViewMode.Clients);
         }
 
-        private void SwitchView(ViewMode mode)
-        {
-            currentMode = mode;
-            MainGrid.Columns.Clear();
-
-            if (mode == ViewMode.Materials)
-            {
-                CurrentTableTitle.Content = "Материалы";
-                MainGrid.ItemsSource = pricesList;
-                AddCol("Материал", "MaterialsName"); AddCol("Остаток", "StockAmount"); AddCol("Итого", "TotalPrice");
-            }
-            else if (mode == ViewMode.Services)
-            {
-                CurrentTableTitle.Content = "Услуги";
-                MainGrid.ItemsSource = serviceList;
-                AddCol("Название", "Name"); AddCol("Тариф", "BasePrice"); AddCol("Итого", "TotalPrice");
-            }
-            else
-            {
-                CurrentTableTitle.Content = "База клиентов";
-                MainGrid.ItemsSource = clientList;
-                AddCol("ФИО", "FullName"); AddCol("Паспорт", "Passport"); AddCol("Адрес", "Address");
-            }
-        }
-
-        private void AddCol(string header, string binding) =>
-            MainGrid.Columns.Add(new DataGridTextColumn { Header = header, Binding = new Binding(binding), Width = new DataGridLength(1, DataGridLengthUnitType.Star) });
 
         private void SearchBox_TextChanged(object sender, TextChangedEventArgs e)
         {
@@ -203,28 +288,73 @@ namespace Platezh.Views
                 ClientSelectBox.SelectedItem = client;
         }
 
-        private void Grid_Click(object sender, RoutedEventArgs e) => SelectRecord();
         private void Addbtnclicked(object sender, RoutedEventArgs e) => SelectRecord();
 
-        // ОБНОВЛЕННЫЙ метод выбора записи
+        // Обработчик события из XAML
+        private void Grid_Click(object sender, System.Windows.Input.MouseButtonEventArgs e)
+        {
+            SelectRecord();
+        }
+
         private void SelectRecord()
         {
+            // Проверка: выделена ли строка?
+            if (MainGrid.SelectedItem == null) return;
+
+            // --- ЛОГИКА ДЛЯ МАТЕРИАЛОВ ---
             if (currentMode == ViewMode.Materials && MainGrid.SelectedItem is MaterialPriceItem mat)
             {
-                string input = Interaction.InputBox($"Кол-во для '{mat.MaterialsName}':", "Добавление", "1");
-                if (int.TryParse(input, out int qty) && qty > 0 && qty <= mat.StockAmount)
+                if (mat.IsActiveWord == "Недоступен")
                 {
-                    // Сохраняем и объект, и количество
-                    selectedMaterialsWithQty.Add(new SelectedMaterialEntry { Item = mat, Quantity = qty });
-                    SelectedItemsListBox.Items.Add($"Мат: {mat.MaterialsName} x{qty} | {mat.TotalPrice * qty} BYN");
+                    MessageBox.Show($"Материал '{mat.MaterialsName}' недоступен для заказа!", "Внимание", MessageBoxButton.OK, MessageBoxImage.Warning);
+                    return;
+                }
+
+                string input = Interaction.InputBox($"Кол-во для '{mat.MaterialsName}' (На складе: {mat.StockAmount}):", "Добавление", "1");
+
+                if (int.TryParse(input, out int qty) && qty > 0)
+                {
+                    if (qty > mat.StockAmount)
+                    {
+                        MessageBox.Show($"Недостаточно на складе! Доступно: {mat.StockAmount}", "Внимание", MessageBoxButton.OK, MessageBoxImage.Stop);
+                        return;
+                    }
+
+                    mat.StockAmount -= qty;
+
+                    var newItem = new BasketItem
+                    {
+                        DisplayName = $"Мат: {mat.MaterialsName} x{qty} | {mat.TotalPrice * qty} BYN",
+                        Material = mat,
+                        Quantity = qty
+                    };
+                    basket.Add(newItem);
+                    SelectedItemsListBox.Items.Add(newItem.DisplayName);
+
+                    // Теперь это безопасно, так как IsReadOnly="True"
+                    MainGrid.Items.Refresh();
                 }
             }
+            // --- ЛОГИКА ДЛЯ УСЛУГ ---
             else if (currentMode == ViewMode.Services && MainGrid.SelectedItem is ServiceItem ser)
             {
-                selectedServicesList.Add(ser);
-                SelectedItemsListBox.Items.Add($"Усл: {ser.Name} | {ser.TotalPrice} BYN");
+                if (ser.IsActiveWord == "Недоступна")
+                {
+                    MessageBox.Show($"Услуга '{ser.Name}' на данный момент недоступна!", "Внимание", MessageBoxButton.OK, MessageBoxImage.Warning);
+                    return;
+                }
+
+                var newItem = new BasketItem
+                {
+                    DisplayName = $"Усл: {ser.Name} | {ser.TotalPrice} BYN",
+                    Service = ser
+                };
+                basket.Add(newItem);
+                SelectedItemsListBox.Items.Add(newItem.DisplayName);
             }
         }
+
+
 
         // ОБНОВЛЕННЫЙ метод удаления (чтобы списки не рассинхронизировались)
         private void Deletebtn_Click(object sender, RoutedEventArgs e)
@@ -232,86 +362,173 @@ namespace Platezh.Views
             int index = SelectedItemsListBox.SelectedIndex;
             if (index != -1)
             {
+                var itemToRemove = basket[index];
+
+                // Если это был материал — возвращаем остаток
+                if (itemToRemove.IsMaterial)
+                {
+                    itemToRemove.Material.StockAmount += itemToRemove.Quantity;
+
+                    // Важно: обновляем таблицу сразу
+                    if (currentMode == ViewMode.Materials)
+                    {
+                        MainGrid.Items.Refresh();
+                    }
+                }
+
+                // Удаляем из обоих списков по одному и тому же индексу
+                basket.RemoveAt(index);
                 SelectedItemsListBox.Items.RemoveAt(index);
-                // Это упрощенный вариант удаления из внутренних списков. 
-                // В идеале лучше использовать один общий список объектов для ListBox.
-                if (index < selectedMaterialsWithQty.Count)
-                    selectedMaterialsWithQty.RemoveAt(index);
-                else
-                    selectedServicesList.RemoveAt(index - selectedMaterialsWithQty.Count);
             }
         }
         private void SelectedItemsListBox_KeyDown(object sender, System.Windows.Input.KeyEventArgs e) { }
+        // 1. Вспомогательный метод для полной очистки полей и списков
+        private void ClearAllFields()
+        {
+            // Очистка списков выбранного
+            selectedMaterialsWithQty.Clear();
+            selectedServicesList.Clear();
+            SelectedItemsListBox.Items.Clear();
+
+            // Очистка текстовых полей клиента
+            ClientNameBox.Clear();
+            PassportDataBox.Clear();
+            AddressBox.Clear();
+            ClientSelectBox.SelectedItem = null;
+
+            // Перезагрузка данных из БД, чтобы вернуть реальные остатки (откат визуальных изменений)
+            LoadPrices();
+            if (currentMode == ViewMode.Materials)
+            {
+                MainGrid.ItemsSource = null;
+                MainGrid.ItemsSource = pricesList;
+                MainGrid.Items.Refresh();
+            }
+        }
+
         private void GenerateContract_Click(object sender, RoutedEventArgs e)
         {
             try
             {
-                // 1. Проверки
+                // 1. Проверки перед началом
                 if (string.IsNullOrWhiteSpace(ClientNameBox.Text))
                 {
-                    MessageBox.Show("Выберите клиента или введите ФИО!");
+                    MessageBox.Show("Выберите клиента или введите ФИО!", "Внимание", MessageBoxButton.OK, MessageBoxImage.Warning);
                     return;
                 }
 
-                if (SelectedItemsListBox.Items.Count == 0)
+                // ПРОВЕРКА ПО ЕДИНОМУ СПИСКУ КОРЗИНЫ
+                if (basket.Count == 0)
                 {
-                    MessageBox.Show("Список услуг и материалов пуст!");
+                    MessageBox.Show("Список услуг и материалов пуст!", "Внимание", MessageBoxButton.OK, MessageBoxImage.Warning);
                     return;
                 }
 
-                // 2. Подготовка данных для ExcelService
+                // 2. Выбор папки для сохранения
+                var saveDialog = new SaveFileDialog
+                {
+                    Filter = "Excel Files|*.xlsx",
+                    FileName = $"Договор_{ClientNameBox.Text}_{DateTime.Now:ddMMyyyy}"
+                };
+
+                if (saveDialog.ShowDialog() != true) return;
+
+                string directory = System.IO.Path.GetDirectoryName(saveDialog.FileName);
+
+                // 3. БЕЗОПАСНОЕ СПИСАНИЕ СО СКЛАДА (Транзакция)
+                using (SqlConnection conn = new SqlConnection(connectionString))
+                {
+                    conn.Open();
+                    using (SqlTransaction transaction = conn.BeginTransaction())
+                    {
+                        try
+                        {
+                            // Итерируемся только по материалам в корзине
+                            foreach (var entry in basket.Where(x => x.IsMaterial))
+                            {
+                                // Проверка реального остатка в БД
+                                string checkQuery = "SELECT StockAmount FROM MaterialPrices WHERE PriceID = @id";
+                                int currentStock = 0;
+                                using (SqlCommand cmdCheck = new SqlCommand(checkQuery, conn, transaction))
+                                {
+                                    cmdCheck.Parameters.AddWithValue("@id", entry.Material.PriceID);
+                                    currentStock = Convert.ToInt32(cmdCheck.ExecuteScalar());
+                                }
+
+                                if (currentStock < entry.Quantity)
+                                {
+                                    throw new Exception($"Недостаточно материала '{entry.Material.MaterialsName}'.\n" +
+                                                        $"На складе: {currentStock}, в корзине: {entry.Quantity}");
+                                }
+
+                                // Списание
+                                string updateQuery = "UPDATE MaterialPrices SET StockAmount = StockAmount - @qty WHERE PriceID = @id";
+                                using (SqlCommand cmdUpdate = new SqlCommand(updateQuery, conn, transaction))
+                                {
+                                    cmdUpdate.Parameters.AddWithValue("@qty", entry.Quantity);
+                                    cmdUpdate.Parameters.AddWithValue("@id", entry.Material.PriceID);
+                                    cmdUpdate.ExecuteNonQuery();
+                                }
+                            }
+                            transaction.Commit();
+                        }
+                        catch (Exception ex)
+                        {
+                            transaction.Rollback();
+                            ClearAllFields();
+                            throw new Exception("Ошибка транзакции (данные в БД не изменены): " + ex.Message);
+                        }
+                    }
+                }
+
+                // 4. ПОДГОТОВКА СПИСКОВ И ГЕНЕРАЦИЯ EXCEL (Разделяем общую корзину на два списка для сервиса)
                 var excelService = new ExcelService();
 
-                // Мапим наши внутренние материалы в модель ExcelService.Material
-                var materialsForExcel = selectedMaterialsWithQty.Select(m => new Platezh.Services.Material
-                {
-                    id = m.Item.MatId,
-                    name = m.Item.MaterialsName,
-                    count = m.Quantity,
-                    nds = m.Item.Nds,
-                    totalPrice = m.Item.TotalPrice
-                }).ToList();
+                // Фильтруем материалы
+                var materialsForExcel = basket
+                    .Where(b => b.IsMaterial)
+                    .Select(m => new Platezh.Services.Material
+                    {
+                        id = m.Material.MatId,
+                        name = m.Material.MaterialsName,
+                        count = m.Quantity,
+                        nds = m.Material.Nds,
+                        totalPrice = m.Material.TotalPrice
+                    }).ToList();
 
-                // Мапим наши услуги в модель ExcelService.Service
-                var servicesForExcel = selectedServicesList.Select(s => new Platezh.Services.Service
-                {
-                    id = s.ServiceId,
-                    name = s.Name,
-                    count = 1, // Обычно услуга идет в 1 экз.
-                    tariff = s.BasePrice,
-                    additionalMaterialCost = s.AddMaterials,
-                    totalCost = s.TotalPrice
-                }).ToList();
+                // Фильтруем услуги
+                var servicesForExcel = basket
+                    .Where(b => !b.IsMaterial)
+                    .Select(s => new Platezh.Services.Service
+                    {
+                        id = s.Service.ServiceId,
+                        name = s.Service.Name,
+                        count = 1,
+                        tariff = s.Service.BasePrice,
+                        additionalMaterialCost = s.Service.AddMaterials,
+                        totalCost = s.Service.TotalPrice
+                    }).ToList();
 
-                // Заполняем данные контракта
                 var contractData = new ContractData
                 {
                     contractNumber = "№" + DateTime.Now.ToString("yyyyMMdd-HHmm"),
                     clientName = ClientNameBox.Text,
                     passportNumber = PassportDataBox.Text,
                     address = AddressBox.Text,
-                    issuedBy = "Выдано отделом кадров", // Можно добавить поле в UI
-                    dateIssued = DateTime.Now.AddYears(-5) // Можно добавить DatePicker в UI
+                    issuedBy = "Система",
+                    dateIssued = DateTime.Now
                 };
 
-                // 3. Выбор папки сохранения
-                var saveDialog = new SaveFileDialog
-                {
-                    Filter = "Excel Files|*.xlsx",
-                    FileName = $"Договор_{contractData.clientName}_{DateTime.Now:ddMMyyyy}"
-                };
+                excelService.FillContract(servicesForExcel, materialsForExcel, contractData, directory);
 
-                if (saveDialog.ShowDialog() == true)
-                {
-                    string directory = System.IO.Path.GetDirectoryName(saveDialog.FileName);
-
-                    // Вызов вашего сервиса
-                    excelService.FillContract(servicesForExcel, materialsForExcel, contractData, directory);
-                }
+                // 5. УСПЕШНОЕ ЗАВЕРШЕНИЕ
+                MessageBox.Show("Договор успешно сформирован!", "Успех", MessageBoxButton.OK, MessageBoxImage.Information);
+                ClearAllFields();
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Ошибка при создании договора: {ex.Message}\n{ex.StackTrace}");
+                MessageBox.Show(ex.Message, "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+                ClearAllFields();
             }
         }
         private void SaveClient_Click(object sender, RoutedEventArgs e) { MessageBox.Show("Данные сохранены"); LoadClients(); }
@@ -320,6 +537,15 @@ namespace Platezh.Views
         private void SelectFolderButton_Click(object sender, RoutedEventArgs e) { }
         private void Window_Closing(object sender, System.ComponentModel.CancelEventArgs e) { }
 
+
+        private class BasketItem
+        {
+            public string DisplayName { get; set; } // То, что видит пользователь
+            public MaterialPriceItem Material { get; set; } // Ссылка на материал (если это он)
+            public ServiceItem Service { get; set; } // Ссылка на услугу (если это она)
+            public int Quantity { get; set; }
+            public bool IsMaterial => Material != null;
+        }
 
         public class MaterialPriceItem
         {
@@ -343,12 +569,19 @@ namespace Platezh.Views
             public decimal TotalPrice { get; set; }
             public string IsActiveWord { get; set; } = "";
         }
-
         public class ClientItem
         {
             public int id { get; set; }
-            public string FullName { get; set; } = "";
-            public string Passport { get; set; } = "";
+            public string Surname { get; set; } = "";
+            public string Name { get; set; } = "";
+            public string FatherName { get; set; } = "";
+
+            // Вспомогательное свойство для отображения полного имени в комбобоксе
+            public string FullName => $"{Surname} {Name} {FatherName}".Trim();
+
+            public string Passport { get; set; } = ""; // Это будет PassportNumber
+            public string IssuedBy { get; set; } = "";
+            public DateTime? IssuedDate { get; set; } // Дата выдачи
             public string Address { get; set; } = "";
         }
     }
