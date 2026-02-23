@@ -22,16 +22,15 @@ namespace Platezh
         {
             InitializeComponent();
             LoadRolesAsync();
+            Role.SelectedIndex = -1;
         }
 
         private async void LoadRolesAsync()
         {
             try
             {
-                // Получаем роли через сервис
                 roleList = await RoleService.GetRolesAsync();
 
-                // Привязываем к ComboBox
                 Role.ItemsSource = roleList;
                 Role.DisplayMemberPath = "RoleName";
                 Role.SelectedValuePath = "RoleID";
@@ -42,7 +41,6 @@ namespace Platezh
             }
         }
 
-        // Переключение видимости пароля
         private void TogglePasswordVisibility(object sender, RoutedEventArgs e)
         {
             isPasswordVisible = !isPasswordVisible;
@@ -60,19 +58,24 @@ namespace Platezh
             }
         }
 
-        // Вход в систему
         private async void Login(object sender, RoutedEventArgs e)
         {
             string login = loginTextBox.Text.Trim();
             string password = isPasswordVisible ? passwordTextBox.Text : passwordBox.Password;
-
-            string hashedPassword = Utils.HashPassword(password);
 
             if (string.IsNullOrEmpty(login) || string.IsNullOrEmpty(password))
             {
                 MessageBox.Show("Заполните логин и пароль!", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
                 return;
             }
+
+            if (Role.SelectedValue == null)
+            {
+                MessageBox.Show("Пожалуйста, выберите роль из выпадающего списка!", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Warning);
+                return;
+            }
+
+            string hashedPassword = Utils.HashPassword(password);
 
             try
             {
@@ -100,7 +103,6 @@ namespace Platezh
                                     return;
                                 }
 
-                                // Находим объект роли в загруженном списке
                                 var roleItem = roleList.FirstOrDefault(r => r.RoleID == userRoleId);
 
                                 if (roleItem == null)
@@ -111,14 +113,12 @@ namespace Platezh
 
                                 string roleName = roleItem.RoleName;
 
-                                // Если используешь ComboBox для выбора роли
-                                if (Role.SelectedValue != null && (int)Role.SelectedValue != userRoleId)
+                                if ((int)Role.SelectedValue != userRoleId)
                                 {
                                     MessageBox.Show("Вы выбрали неверную роль для данного пользователя!", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
                                     return;
                                 }
 
-                                // Открываем окно по названию роли
                                 Window nextWindow = roleName switch
                                 {
                                     "Экономист" => new Economist(),

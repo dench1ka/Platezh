@@ -15,7 +15,7 @@ namespace Platezh.Services
         public ExcelService()
         {
             folderPath = "";
-            var baseDir = AppDomain.CurrentDomain.BaseDirectory; 
+            var baseDir = AppDomain.CurrentDomain.BaseDirectory;
             var templateDir = Path.Combine(baseDir, @"..\..\..\Templates");
             _templatePath = Path.Combine(templateDir, "serviceContract.xlsx");
         }
@@ -150,7 +150,7 @@ namespace Platezh.Services
     {
         public int id { get; set; }
         public string name { get; set; }
-        public int count { get; set; } 
+        public int count { get; set; }
         public decimal nds { get; set; }
         public decimal totalPrice { get; set; }
     }
@@ -163,5 +163,14 @@ namespace Platezh.Services
         public decimal tariff { get; set; }
         public decimal additionalMaterialCost { get; set; }
         public decimal totalCost { get; set; }
+    }
+    public class ContractData
+    {
+        public string contractNumber { get; set; }
+        public string clientName { get; set; }
+        public string passportNumber { get; set; }
+        public string issuedBy { get; set; }
+        public DateTime? dateIssued { get; set; }
+        public string address { get; set; }
     }
 }
