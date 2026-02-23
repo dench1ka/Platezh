@@ -16,9 +16,17 @@ namespace Platezh.Views
     public partial class Casher : Window
     {
         string connectionString = ConfigurationManager.ConnectionStrings["PlatezhDB"].ConnectionString;
+        private int _currentUserId;
 
-        private enum ViewMode { Materials, Services, Clients }
         private ViewMode currentMode = ViewMode.Materials;
+        private enum ViewMode { Materials, Services, Clients, PaymentTypes }
+
+        private List<PaymentTypeItem> paymentTypesList = new List<PaymentTypeItem>();
+        public class PaymentTypeItem
+        {
+            public int PaymentTypeID { get; set; }
+            public string PaymentName { get; set; } = "";
+        }
 
         private List<MaterialPriceItem> pricesList = new List<MaterialPriceItem>();
         private List<ServiceItem> serviceList = new List<ServiceItem>();
@@ -28,17 +36,12 @@ namespace Platezh.Views
         private List<SelectedMaterialEntry> selectedMaterialsWithQty = new List<SelectedMaterialEntry>();
         private List<ServiceItem> selectedServicesList = new List<ServiceItem>();
 
-        private class SelectedMaterialEntry
-        {
-            public MaterialPriceItem Item { get; set; }
-            public int Quantity { get; set; }
-        }
-
-        public Casher()
+        public Casher(int loggedInUserId)
         {
             InitializeComponent();
             LoadAllData();
             SwitchView(ViewMode.Materials);
+            _currentUserId = loggedInUserId; // Сохраняем ID того, кто вошел
         }
 
         private void LoadAllData()
@@ -136,6 +139,42 @@ namespace Platezh.Views
                 MainGrid.Columns.Add(col);
             }
         }
+
+        private void LoadPaymentTypes()
+        {
+            paymentTypesList.Clear();
+            using (SqlConnection conn = new SqlConnection(connectionString))
+            {
+                conn.Open();
+                string sql = "SELECT PaymentTypeID, PaymentName FROM PaymentType";
+                using (SqlCommand cmd = new SqlCommand(sql, conn))
+                using (SqlDataReader r = cmd.ExecuteReader())
+                {
+                    while (r.Read())
+                    {
+                        paymentTypesList.Add(new PaymentTypeItem
+                        {
+                            PaymentTypeID = r.GetInt32(0),
+                            PaymentName = r.GetString(1)
+                        });
+                    }
+                }
+            }
+
+            
+            if (currentMode == ViewMode.PaymentTypes)
+            {
+                var headers = new Dictionary<string, string>
+        {
+            { "PaymentTypeID", "ID" },
+            { "PaymentName", "Название способа оплаты" }
+        };
+
+                CreateColumns(headers);
+                MainGrid.ItemsSource = paymentTypesList.ToList();
+            }
+        }
+
 
         private void LoadPrices()
         {
@@ -418,47 +457,6 @@ namespace Platezh.Views
                 string filePath = saveDialog.FileName;
                 string directory = System.IO.Path.GetDirectoryName(filePath);
 
-                using (SqlConnection conn = new SqlConnection(connectionString))
-                {
-                    conn.Open();
-                    using (SqlTransaction transaction = conn.BeginTransaction())
-                    {
-                        try
-                        {
-                            foreach (var item in basket.Where(x => x.IsMaterial))
-                            {
-                                string checkSql = "SELECT StockAmount FROM MaterialPrices WHERE PriceID = @id";
-                                int dbStock = 0;
-                                using (SqlCommand cmdCheck = new SqlCommand(checkSql, conn, transaction))
-                                {
-                                    cmdCheck.Parameters.AddWithValue("@id", item.Material.PriceID);
-                                    dbStock = (int)cmdCheck.ExecuteScalar();
-                                }
-
-                                if (dbStock < item.Quantity)
-                                {
-                                    throw new Exception($"Недостаточно товара '{item.Material.MaterialsName}' на складе.\n" +
-                                                        $"Доступно: {dbStock}, требуется: {item.Quantity}");
-                                }
-
-                                string updateSql = "UPDATE MaterialPrices SET StockAmount = StockAmount - @qty WHERE PriceID = @id";
-                                using (SqlCommand cmdUpdate = new SqlCommand(updateSql, conn, transaction))
-                                {
-                                    cmdUpdate.Parameters.AddWithValue("@qty", item.Quantity);
-                                    cmdUpdate.Parameters.AddWithValue("@id", item.Material.PriceID);
-                                    cmdUpdate.ExecuteNonQuery();
-                                }
-                            }
-                            transaction.Commit();
-                        }
-                        catch (Exception ex)
-                        {
-                            transaction.Rollback();
-                            throw new Exception("Ошибка при обновлении склада: " + ex.Message);
-                        }
-                    }
-                }
-
                 var excelService = new ExcelService();
 
                 var materialsForExcel = basket
@@ -495,6 +493,143 @@ namespace Platezh.Views
                     issuedBy = selectedClient.IssuedBy,
                     dateIssued = selectedClient.IssuedDate ?? DateTime.Now
                 };
+
+                // ВНИМАНИЕ: Для работы этого кода у вас в XAML должны быть добавлены:
+                // 1. CheckBox или ComboBox со статусом оплаты (назовем его IsPaidCheckBox)
+                // 2. ComboBox с выбором метода оплаты (назовем его PaymentMethodComboBox)
+
+                using (SqlConnection conn = new SqlConnection(connectionString))
+                {
+                    conn.Open();
+                    using (SqlTransaction transaction = conn.BeginTransaction())
+                    {
+                        try
+                        {
+                            // --- 1. Подсчет итоговых сумм ---
+                            decimal totalWithoutNds = 0;
+                            decimal totalNds = 0;
+                            decimal totalAmount = 0;
+
+                            foreach (var item in basket)
+                            {
+                                if (item.IsMaterial)
+                                {
+                                    totalWithoutNds += item.Material.PriceWithoutNds * item.Quantity;
+                                    totalNds += item.Material.Nds * item.Quantity;
+                                    totalAmount += item.Material.TotalPrice * item.Quantity;
+                                }
+                                else
+                                {
+                                    // Предполагаем, что НДС для услуг равен 0 или уже включен в TotalPrice
+                                    totalWithoutNds += item.Service.TotalPrice;
+                                    totalAmount += item.Service.TotalPrice;
+                                }
+                            }
+
+                            // Статусы берем из UI (заглушки для примера, замените на ваши элементы управления)
+                            bool isPaid = false; // Замените на: IsPaidCheckBox.IsChecked == true;
+                            string statusString = isPaid ? "Оплачено" : "Не оплачено";
+                            int? selectedPaymentTypeId = null; // Замените на: (PaymentMethodComboBox.SelectedItem as PaymentTypeItem)?.PaymentTypeID;
+
+                            // --- 2. Добавление записи в Contracts ---
+                            string insertContractSql = @"
+                            INSERT INTO Contracts (ContractNumber, ClientID, ContractDate, TotalWithoutNds, TotalNds, TotalAmount, Status, CreatedBy)
+                            VALUES (@num, @clientId, @date, @totNoNds, @totNds, @totAmt, @status, @createdBy);
+                            SELECT SCOPE_IDENTITY();";
+
+                            int newContractId = 0;
+                            using (SqlCommand cmdContract = new SqlCommand(insertContractSql, conn, transaction))
+                            {
+                                cmdContract.Parameters.AddWithValue("@num", contractData.contractNumber);
+                                cmdContract.Parameters.AddWithValue("@clientId", selectedClient.id);
+                                cmdContract.Parameters.AddWithValue("@date", DateTime.Now);
+                                cmdContract.Parameters.AddWithValue("@totNoNds", totalWithoutNds);
+                                cmdContract.Parameters.AddWithValue("@totNds", totalNds);
+                                cmdContract.Parameters.AddWithValue("@totAmt", totalAmount);
+                                cmdContract.Parameters.AddWithValue("@status", statusString);
+                                cmdContract.Parameters.AddWithValue("@createdBy", _currentUserId);
+
+                                newContractId = Convert.ToInt32(cmdContract.ExecuteScalar());
+                            }
+
+                            // --- 3. Добавление элементов корзины в ContractItems и обновление остатков ---
+                            // --- 3. Добавление элементов корзины в ContractItems и обновление остатков ---
+                            foreach (var item in basket)
+                            {
+                                string insertItemSql = @"
+                                    INSERT INTO ContractItems (ContractID, ItemType, Quantity, PriceWithoutNds, NdsPercent, Total, MaterialID, ServiceID)
+                                    VALUES (@cid, @type, @qty, @price, @nds, @total, @mi, @si)";
+
+                                using (SqlCommand cmdItem = new SqlCommand(insertItemSql, conn, transaction))
+                                {
+                                    cmdItem.Parameters.AddWithValue("@cid", newContractId);
+                                    cmdItem.Parameters.AddWithValue("@qty", item.Quantity > 0 ? item.Quantity : 1);
+
+                                    if (item.IsMaterial)
+                                    {
+                                        // Логика для МАТЕРИАЛА
+                                        cmdItem.Parameters.AddWithValue("@type", "Material");
+                                        cmdItem.Parameters.AddWithValue("@mi", item.Material!.MatId); // Передаем ID материала
+                                        cmdItem.Parameters.AddWithValue("@si", DBNull.Value);        // Услуги нет
+                                        cmdItem.Parameters.AddWithValue("@price", item.Material.PriceWithoutNds);
+
+                                        decimal ndsPercent = item.Material.PriceWithoutNds > 0
+                                            ? (item.Material.Nds / item.Material.PriceWithoutNds) * 100
+                                            : 0;
+                                        cmdItem.Parameters.AddWithValue("@nds", ndsPercent);
+                                        cmdItem.Parameters.AddWithValue("@total", item.Material.TotalPrice * item.Quantity);
+
+                                        // Обновление остатков (уже есть в вашем коде)
+                                        string updateSql = "UPDATE MaterialPrices SET StockAmount = StockAmount - @qty WHERE PriceID = @id";
+                                        using (SqlCommand cmdUpdate = new SqlCommand(updateSql, conn, transaction))
+                                        {
+                                            cmdUpdate.Parameters.AddWithValue("@qty", item.Quantity);
+                                            cmdUpdate.Parameters.AddWithValue("@id", item.Material.PriceID);
+                                            cmdUpdate.ExecuteNonQuery();
+                                        }
+                                    }
+                                    else
+                                    {
+                                        // Логика для УСЛУГИ
+                                        cmdItem.Parameters.AddWithValue("@type", "Service");
+                                        cmdItem.Parameters.AddWithValue("@mi", DBNull.Value);        // Материала нет
+                                        cmdItem.Parameters.AddWithValue("@si", item.Service!.ServiceId); // Передаем ID услуги
+                                        cmdItem.Parameters.AddWithValue("@price", item.Service.TotalPrice);
+                                        cmdItem.Parameters.AddWithValue("@nds", 0);
+                                        cmdItem.Parameters.AddWithValue("@total", item.Service.TotalPrice);
+                                    }
+
+                                    cmdItem.ExecuteNonQuery(); // Теперь @si и @mi всегда объявлены
+                                }
+                            }
+
+                            // --- 4. Добавление записи в Payments (если оплачено) ---
+                            if (isPaid && selectedPaymentTypeId.HasValue)
+                            {
+                                string insertPaymentSql = @"
+                                INSERT INTO Payments (ContractID, PaymentDate, Amount, PaymentTypeID)
+                                VALUES (@cid, @date, @amount, @pid)";
+
+                                using (SqlCommand cmdPayment = new SqlCommand(insertPaymentSql, conn, transaction))
+                                {
+                                    cmdPayment.Parameters.AddWithValue("@cid", newContractId);
+                                    cmdPayment.Parameters.AddWithValue("@date", DateTime.Now);
+                                    cmdPayment.Parameters.AddWithValue("@amount", totalAmount);
+                                    cmdPayment.Parameters.AddWithValue("@pid", selectedPaymentTypeId.Value);
+                                    cmdPayment.ExecuteNonQuery();
+                                }
+                            }
+
+                            // Подтверждаем транзакцию
+                            transaction.Commit();
+                        }
+                        catch (Exception ex)
+                        {
+                            transaction.Rollback();
+                            throw new Exception("Ошибка при оформлении договора в БД: " + ex.Message);
+                        }
+                    }
+                }
 
                 excelService.FillContract(servicesForExcel, materialsForExcel, contractData, directory);
 
@@ -564,7 +699,6 @@ namespace Platezh.Views
             }
         }
 
-        // Добавьте этот метод в класс Casher
         private void EditClient_Click(object sender, RoutedEventArgs e)
         {
             if (currentMode == ViewMode.Clients && MainGrid.SelectedItem is ClientItem selectedClient)
@@ -639,27 +773,33 @@ namespace Platezh.Views
         private void SelectFolderButton_Click(object sender, RoutedEventArgs e) { }
         private void Window_Closing(object sender, System.ComponentModel.CancelEventArgs e) { }
 
-
-        private class BasketItem
-        {
-            public string DisplayName { get; set; } 
-            public MaterialPriceItem Material { get; set; } 
-            public ServiceItem Service { get; set; } 
-            public int Quantity { get; set; }
-            public bool IsMaterial => Material != null;
-        }
-
         public class MaterialPriceItem
         {
             public int PriceID { get; set; }
             public int MatId { get; set; }
-            public string MaterialsName { get; set; } = "";
+            public string MaterialsName { get; set; } = ""; // Инициализация строкой
             public string UnitName { get; set; } = "";
             public decimal PriceWithoutNds { get; set; }
             public int StockAmount { get; set; }
             public decimal Nds { get; set; }
             public decimal TotalPrice { get; set; }
             public string IsActiveWord { get; set; } = "";
+            public string IsActivePriceWord { get; set; } = ""; // Добавьте, если используется
+        }
+
+        private class BasketItem
+        {
+            public string DisplayName { get; set; } = "";
+            public MaterialPriceItem? Material { get; set; } // Может быть NULL, если это услуга
+            public ServiceItem? Service { get; set; }        // Может быть NULL, если это материал
+            public int Quantity { get; set; }
+            public bool IsMaterial => Material != null;
+        }
+
+        private class SelectedMaterialEntry
+        {
+            public MaterialPriceItem Item { get; set; } = null!; // null! говорит компилятору: "я знаю, что тут будет объект"
+            public int Quantity { get; set; }
         }
 
         public class ServiceItem
