@@ -103,7 +103,12 @@
                         <Label Content="Адрес проживания:"/>
                         <TextBox x:Name="AddressBox" Margin="0,0,0,5"/>
 
-                        <Button x:Name="SaveClientBtn" Content="Обновить/Сохранить клиента" Click="SaveClient_Click" Background="#FF43A047" Margin="0,15,0,0" Height="40" FontWeight="Bold"/>
+                        <Label Content="Дата выдачи"/>
+                        <DatePicker x:Name="DateIssued"/>
+                        
+                        <Button x:Name="SaveClientBtn" Content="Сохранить клиента" Click="SaveClient_Click" Background="#FF43A047" Margin="0,15,0,0" Height="40" FontWeight="Bold"/>
+                        <Button x:Name="EditClientBtn" Content="Редактироваить клиента" Click="EditClient_Click" Background="#FF1976D2" Margin="0,15,0,0" Height="40" FontWeight="Bold"/>
+                        <Button x:Name="DeleteClientBtn" Content="Удалить клиента" Click="DeleteClientBtn_Click" Background="#FFD32F2F" Margin="0,15,0,0" Height="40" FontWeight="Bold"/>
                     </StackPanel>
 
                     <Separator Margin="0,15"/>
