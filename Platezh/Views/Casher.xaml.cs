@@ -19,7 +19,7 @@ namespace Platezh.Views
         private int _currentUserId;
 
         private ViewMode currentMode = ViewMode.Materials;
-        private enum ViewMode { Materials, Services, Clients, PaymentTypes }
+        private enum ViewMode { Materials, Services, Clients, PaymentTypes, History }
 
         private List<PaymentTypeItem> paymentTypesList = new List<PaymentTypeItem>();
         public class PaymentTypeItem
@@ -32,6 +32,7 @@ namespace Platezh.Views
         private List<ServiceItem> serviceList = new List<ServiceItem>();
         private List<ClientItem> clientList = new List<ClientItem>();
         private List<BasketItem> basket = new List<BasketItem>();
+        private List<HistoryItem> historyList = new List<HistoryItem>();
 
         private List<SelectedMaterialEntry> selectedMaterialsWithQty = new List<SelectedMaterialEntry>();
         private List<ServiceItem> selectedServicesList = new List<ServiceItem>();
@@ -51,6 +52,8 @@ namespace Platezh.Views
                 LoadPrices();
                 LoadServices();
                 LoadClients();
+                LoadPaymentTypes();
+                LoadHistory();
             }
             catch (Exception ex)
             {
@@ -69,30 +72,56 @@ namespace Platezh.Views
             {
                 if (BasketPanel != null) BasketPanel.Visibility = Visibility.Collapsed;
                 if (ClientFormPanel != null) ClientFormPanel.Visibility = Visibility.Visible;
+                if (PaymentTypeFormPanel != null) PaymentTypeFormPanel.Visibility = Visibility.Collapsed;
+                if (HistoryContractsFormPanel != null) HistoryContractsFormPanel.Visibility = Visibility.Collapsed;
             }
-            else
+            else if (mode == ViewMode.PaymentTypes)
+            {
+                if (BasketPanel != null) BasketPanel.Visibility = Visibility.Collapsed;
+                if (ClientFormPanel != null) ClientFormPanel.Visibility = Visibility.Collapsed;
+                if (PaymentTypeFormPanel != null) PaymentTypeFormPanel.Visibility = Visibility.Visible;
+                if (HistoryContractsFormPanel != null) HistoryContractsFormPanel.Visibility = Visibility.Collapsed;
+            }
+            else if (mode == ViewMode.Materials || mode == ViewMode.Services)
             {
                 if (BasketPanel != null) BasketPanel.Visibility = Visibility.Visible;
                 if (ClientFormPanel != null) ClientFormPanel.Visibility = Visibility.Collapsed;
+                if (PaymentTypeFormPanel != null) PaymentTypeFormPanel.Visibility = Visibility.Collapsed;
+                if (HistoryContractsFormPanel != null) HistoryContractsFormPanel.Visibility = Visibility.Collapsed;
             }
-
-            switch (mode)
+            else if (mode == ViewMode.History)
             {
-                case ViewMode.Materials:
-                    CurrentTableTitle.Content = "Материалы";
-                    LoadPrices();
-                    break;
-
-                case ViewMode.Services:
-                    CurrentTableTitle.Content = "Услуги";
-                    LoadServices();
-                    break;
-
-                case ViewMode.Clients:
-                    CurrentTableTitle.Content = "База клиентов";
-                    LoadClients();
-                    break;
+                if (BasketPanel != null) BasketPanel.Visibility = Visibility.Collapsed;
+                if (ClientFormPanel != null) ClientFormPanel.Visibility = Visibility.Collapsed;
+                if (PaymentTypeFormPanel != null) PaymentTypeFormPanel.Visibility = Visibility.Collapsed;
+                if (HistoryContractsFormPanel != null) HistoryContractsFormPanel.Visibility = Visibility.Visible;
             }
+
+                switch (mode)
+                {
+                    case ViewMode.Materials:
+                        CurrentTableTitle.Content = "Материалы";
+                        LoadPrices();
+                        break;
+
+                    case ViewMode.Services:
+                        CurrentTableTitle.Content = "Услуги";
+                        LoadServices();
+                        break;
+
+                    case ViewMode.Clients:
+                        CurrentTableTitle.Content = "База клиентов";
+                        LoadClients();
+                        break;
+                    case ViewMode.PaymentTypes:
+                        CurrentTableTitle.Content = "Способы платежей";
+                        LoadPaymentTypes();
+                        break;
+                    case ViewMode.History:
+                        CurrentTableTitle.Content = "История договоров";
+                        LoadHistory();
+                        break;
+                }
         }
 
         private void ClearAllFields()
@@ -161,20 +190,66 @@ namespace Platezh.Views
                 }
             }
 
-            
-            if (currentMode == ViewMode.PaymentTypes)
+            var headers = new Dictionary<string, string>
             {
-                var headers = new Dictionary<string, string>
-        {
-            { "PaymentTypeID", "ID" },
-            { "PaymentName", "Название способа оплаты" }
-        };
+                { "PaymentTypeID", "ID" },
+                { "PaymentName", "Название способа оплаты" }
+            };
 
-                CreateColumns(headers);
-                MainGrid.ItemsSource = paymentTypesList.ToList();
-            }
+            CreateColumns(headers);
+            MainGrid.ItemsSource = paymentTypesList.ToList();
+            
         }
 
+        private void LoadHistory()
+        {
+            historyList.Clear();
+            using (SqlConnection conn = new SqlConnection(connectionString))
+            {
+                conn.Open();
+                string query = @"SELECT co.ContractID as coId, co.ContractNumber as coN, c.Name as cN, c.Surname as cS, c.FatherName as cF, co.ContractDate as coD, co.TotalWithoutNds as coT, co.TotalNds as coTN, co.TotalAmount as coTA, co.Status as coS, u.Login as uL FROM Contracts as co 
+                    LEFT JOIN Clients as c ON co.ClientID = c.ClientID
+                    LEFT JOIN Users as u ON co.CreatedBy = u.UserID";
+
+                using (SqlCommand cmd = new SqlCommand(query, conn))
+                using (SqlDataReader reader = cmd.ExecuteReader())
+                {
+                    while (reader.Read())
+                    { 
+                        string fullName = reader.GetString(reader.GetOrdinal("cN")) + " " + reader.GetString(reader.GetOrdinal("cS")) + " " + reader.GetString(reader.GetOrdinal("cF"));
+
+                        historyList.Add(new HistoryItem
+                        {
+                            ContractID = reader.GetInt32(reader.GetOrdinal("coId")),
+                            ContractNumber = reader.GetString(reader.GetOrdinal("coN")),
+                            ClientName = fullName,
+                            ContractDate = reader.GetDateTime(reader.GetOrdinal("coD")),
+                            TotalWithoutNds = reader.GetDecimal(reader.GetOrdinal("coT")),
+                            TotalNds = reader.GetDecimal(reader.GetOrdinal("coTN")),
+                            TotalPrice = reader.GetDecimal(reader.GetOrdinal("coTA")),
+                            Status = reader.GetString(reader.GetOrdinal("coS")),
+                            CreatedBy = reader.GetString(reader.GetOrdinal("uL")),
+                        });
+                    }
+                }
+            }
+
+            var headers = new Dictionary<string, string>
+            {
+                { "ContractID", "ID Договора" },
+                { "ContractNumber", "Номер договора" },
+                { "ClientName", "ФИО клиента" },
+                { "ContractDate", "Дата договора" },
+                { "TotalWithoutNds", "Цена без НДС (BYN)" },
+                { "TotalNds", "НДС (BYN)" },
+                { "TotalPrice", "Итого (BYN)" },
+                { "Status", "Статус" },
+                { "CreatedBy", "Оформлен" }
+            };
+
+            CreateColumns(headers);
+            MainGrid.ItemsSource = historyList.ToList();
+        }
 
         private void LoadPrices()
         {
@@ -327,6 +402,8 @@ namespace Platezh.Views
             if (sender == BtnMaterials) SwitchView(ViewMode.Materials);
             else if (sender == BtnServices) SwitchView(ViewMode.Services);
             else if (sender == BtnClients) SwitchView(ViewMode.Clients);
+            else if (sender == BtnPayments) SwitchView(ViewMode.PaymentTypes);
+            else if (sender == BtnHistory) SwitchView(ViewMode.History);
         }
 
 
@@ -335,8 +412,91 @@ namespace Platezh.Views
             string t = SearchBox.Text.ToLower();
             if (currentMode == ViewMode.Materials) MainGrid.ItemsSource = pricesList.Where(x => x.MaterialsName.ToLower().Contains(t)).ToList();
             else if (currentMode == ViewMode.Services) MainGrid.ItemsSource = serviceList.Where(x => x.Name.ToLower().Contains(t)).ToList();
+            else if (currentMode == ViewMode.PaymentTypes) MainGrid.ItemsSource = paymentTypesList.Where(x => x.PaymentName.ToLower().Contains(t)).ToList();
+            else if (currentMode == ViewMode.History) MainGrid.ItemsSource = historyList.Where(x => x.ContractNumber.ToLower().Contains(t)).ToList();
             else MainGrid.ItemsSource = clientList.Where(x => x.FullName.ToLower().Contains(t)).ToList();
         }
+
+
+        private void SavePayment_Click(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                if (string.IsNullOrWhiteSpace(PaymentTypeNameBox.Text))
+                {
+                    MessageBox.Show("Название оплаты обязательно для заполнения!", "Внимание", MessageBoxButton.OK, MessageBoxImage.Warning);
+                    return;
+                }
+
+                var selectedPaymentType = MainGrid.SelectedItem as PaymentTypeItem;
+                bool isUpdate = selectedPaymentType != null;
+
+                using (SqlConnection conn = new SqlConnection(connectionString))
+                {
+                    conn.Open();
+                    string sql = @"INSERT INTO PaymentType (PaymentName) VALUES (@pn)";
+
+
+                    using (SqlCommand cmd = new SqlCommand(sql, conn))
+                    {
+                        cmd.Parameters.AddWithValue("@pn", PaymentTypeNameBox.Text.Trim());
+
+                        cmd.ExecuteNonQuery();
+                    }
+                }
+
+                MessageBox.Show(isUpdate ? "Данные способа оплыт успешно обновлены" : "Новый способ оплаты успешно добавлен в базу",
+                                "Успех", MessageBoxButton.OK, MessageBoxImage.Information);
+
+                ClearPayForm();
+
+                LoadPaymentTypes();
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show("Ошибка при сохранении в базу данных: " + ex.Message, "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
+        private void DeletePaymentBtn_Click(object sender, RoutedEventArgs e)
+        {
+            if (!(MainGrid.SelectedItem is PaymentTypeItem selectedPaymentType))
+            {
+                MessageBox.Show("Пожалуйста, выберите способ оплаты из списка для удаления.", "Внимание", MessageBoxButton.OK, MessageBoxImage.Warning);
+                return;
+            }
+
+            var result = MessageBox.Show($"Вы уверены, что хотите удалить способ оплаты {selectedPaymentType.PaymentName}?",
+                                         "Подтверждение удаления", MessageBoxButton.YesNo, MessageBoxImage.Question);
+
+            if (result == MessageBoxResult.Yes)
+            {
+                try
+                {
+                    using (SqlConnection conn = new SqlConnection(connectionString))
+                    {
+                        conn.Open();
+                        string sql = "DELETE FROM PaymentType WHERE PaymentTypeID = @id";
+                        using (SqlCommand cmd = new SqlCommand(sql, conn))
+                        {
+                            cmd.Parameters.AddWithValue("@id", selectedPaymentType.PaymentTypeID);
+                            cmd.ExecuteNonQuery();
+                        }
+                    }
+
+                    MessageBox.Show("Способ оплаты успешно удален.", "Успех", MessageBoxButton.OK, MessageBoxImage.Information);
+
+                    ClearPayForm();
+                    LoadPaymentTypes();
+                }
+                catch (Exception ex)
+                {
+                    MessageBox.Show("Ошибка при удалении: " + ex.Message, "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+                }
+            }
+        }
+        
+
 
         private void MainGrid_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
@@ -429,6 +589,14 @@ namespace Platezh.Views
             }
         }
         private void SelectedItemsListBox_KeyDown(object sender, System.Windows.Input.KeyEventArgs e) { }
+
+        private void MoreInfoBtn_Click(object sender, RoutedEventArgs e)
+        {
+            if (MainGrid.SelectedItem == null) return;
+
+            EditWindow editWin = new EditWindow(this, currentMode, MainGrid.SelectedItem);
+            editWin.ShowDialog();
+        }
 
         private void GenerateContract_Click(object sender, RoutedEventArgs e)
         {
@@ -557,8 +725,8 @@ namespace Platezh.Views
                             foreach (var item in basket)
                             {
                                 string insertItemSql = @"
-                                    INSERT INTO ContractItems (ContractID, ItemType, Quantity, PriceWithoutNds, NdsPercent, Total, MaterialID, ServiceID)
-                                    VALUES (@cid, @type, @qty, @price, @nds, @total, @mi, @si)";
+                                    INSERT INTO ContractItems (ContractID, ItemType, Quantity, PriceWithoutNds, NdsPercent, Total, MaterialName, ServiceName)
+                                    VALUES (@cid, @type, @qty, @price, @nds, @total, @mn, @sn)";
 
                                 using (SqlCommand cmdItem = new SqlCommand(insertItemSql, conn, transaction))
                                 {
@@ -569,8 +737,8 @@ namespace Platezh.Views
                                     {
                                         // Логика для МАТЕРИАЛА
                                         cmdItem.Parameters.AddWithValue("@type", "Material");
-                                        cmdItem.Parameters.AddWithValue("@mi", item.Material!.MatId); // Передаем ID материала
-                                        cmdItem.Parameters.AddWithValue("@si", DBNull.Value);        // Услуги нет
+                                        cmdItem.Parameters.AddWithValue("@mn", item.Material!.MaterialsName); // Передаем ID материала
+                                        cmdItem.Parameters.AddWithValue("@sn", DBNull.Value);        // Услуги нет
                                         cmdItem.Parameters.AddWithValue("@price", item.Material.PriceWithoutNds);
 
                                         decimal ndsPercent = item.Material.PriceWithoutNds > 0
@@ -592,8 +760,8 @@ namespace Platezh.Views
                                     {
                                         // Логика для УСЛУГИ
                                         cmdItem.Parameters.AddWithValue("@type", "Service");
-                                        cmdItem.Parameters.AddWithValue("@mi", DBNull.Value);        // Материала нет
-                                        cmdItem.Parameters.AddWithValue("@si", item.Service!.ServiceId); // Передаем ID услуги
+                                        cmdItem.Parameters.AddWithValue("@mn", DBNull.Value);        // Материала нет
+                                        cmdItem.Parameters.AddWithValue("@sn", item.Service!.Name); 
                                         cmdItem.Parameters.AddWithValue("@price", item.Service.TotalPrice);
                                         cmdItem.Parameters.AddWithValue("@nds", 0);
                                         cmdItem.Parameters.AddWithValue("@total", item.Service.TotalPrice);
@@ -645,7 +813,6 @@ namespace Platezh.Views
                 MessageBox.Show("Ошибка формирования договора: " + ex.Message, "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
-
 
         private void SaveClient_Click(object sender, RoutedEventArgs e)
         {
@@ -768,7 +935,12 @@ namespace Platezh.Views
             DateIssued.SelectedDate = null;
         }
 
-         private void Button_Click(object sender, RoutedEventArgs e) { this.Close(); }
+        private void ClearPayForm()
+        {
+            PaymentTypeNameBox.Clear();
+        }
+
+        private void Button_Click(object sender, RoutedEventArgs e) { this.Close(); }
         private void ShowContracts(object sender, RoutedEventArgs e) { }
         private void SelectFolderButton_Click(object sender, RoutedEventArgs e) { }
         private void Window_Closing(object sender, System.ComponentModel.CancelEventArgs e) { }
@@ -800,6 +972,20 @@ namespace Platezh.Views
         {
             public MaterialPriceItem Item { get; set; } = null!; // null! говорит компилятору: "я знаю, что тут будет объект"
             public int Quantity { get; set; }
+        }
+
+        public class HistoryItem
+        {
+            public int ContractID { get; set; }
+            public string ContractNumber { get; set; } = "";
+            public string ClientName { get; set; } = "";
+            public DateTime ContractDate { get; set; }
+            public decimal TotalWithoutNds { get; set; }
+            public decimal TotalNds { get; set; }
+            public decimal TotalPrice { get; set; }
+            public string Status { get; set; } = "";
+            public string CreatedBy { get; set; } = "";
+
         }
 
         public class ServiceItem

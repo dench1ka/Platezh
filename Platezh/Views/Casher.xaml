@@ -35,6 +35,8 @@
                     <Button x:Name="BtnClients" Content="Клиенты" Width="120" Click="ViewSwitch_Click"/>
                     <Button x:Name="BtnMaterials" Content="Материалы" Width="140" Click="ViewSwitch_Click"/>
                     <Button x:Name="BtnServices" Content="Услуги" Width="120" Click="ViewSwitch_Click"/>
+                    <Button x:Name="BtnPayments" Content="Способы оплаты" Width="120" Click="ViewSwitch_Click"/>
+                    <Button x:Name="BtnHistory" Content="История договоров" Width="120" Click="ViewSwitch_Click"/>
                 </StackPanel>
             </StackPanel>
 
@@ -109,6 +111,23 @@
                         <Button x:Name="SaveClientBtn" Content="Сохранить клиента" Click="SaveClient_Click" Background="#FF43A047" Margin="0,15,0,0" Height="40" FontWeight="Bold"/>
                         <Button x:Name="EditClientBtn" Content="Редактироваить клиента" Click="EditClient_Click" Background="#FF1976D2" Margin="0,15,0,0" Height="40" FontWeight="Bold"/>
                         <Button x:Name="DeleteClientBtn" Content="Удалить клиента" Click="DeleteClientBtn_Click" Background="#FFD32F2F" Margin="0,15,0,0" Height="40" FontWeight="Bold"/>
+                    </StackPanel>
+
+                    <StackPanel x:Name="PaymentTypeFormPanel" Visibility="Collapsed">
+                        <TextBlock Text="Способы оплыт" FontWeight="Bold" Foreground="#FF1976D2" FontSize="16" Margin="0,0,0,10"/>
+
+                        <Label Content="Тип оплаты:"/>
+                        <TextBox x:Name="PaymentTypeNameBox" Margin="0,0,0,5"/>
+
+
+                        <Button x:Name="SavePaymentTypeClientBtn" Content="Сохранить способ оплаты" Click="SavePayment_Click" Background="#FF43A047" Margin="0,15,0,0" Height="40" FontWeight="Bold"/>
+                        <Button x:Name="DeletePaymentTypeClientBtn" Content="Удалить способ оплаты" Click="DeletePaymentBtn_Click" Background="#FFD32F2F" Margin="0,15,0,0" Height="40" FontWeight="Bold"/>
+                    </StackPanel>
+
+                    <StackPanel x:Name="HistoryContractsFormPanel" Visibility="Collapsed">
+                        <TextBlock Text="История договоров" FontWeight="Bold" Foreground="#FF1976D2" FontSize="16" Margin="0,0,0,10"/>
+
+                        <Button x:Name="MoreInfo" Content="Подробнее" Click="MoreInfoBtn_Click" Background="#FF1976D2" Margin="0,15,0,0" Height="40" FontWeight="Bold"/>
                     </StackPanel>
 
                     <Separator Margin="0,15"/>
