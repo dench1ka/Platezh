@@ -171,5 +171,10 @@ namespace Platezh.Views
                 MessageBox.Show("Ошибка сохранения (проверьте числа): " + ex.Message);
             }
         }
+
+        private void CancelButton_Click(object sender, RoutedEventArgs e)
+        {
+            this.Close();
+        }
     }
 }

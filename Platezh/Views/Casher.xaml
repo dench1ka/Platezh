@@ -35,8 +35,8 @@
                     <Button x:Name="BtnClients" Content="Клиенты" Width="120" Click="ViewSwitch_Click"/>
                     <Button x:Name="BtnMaterials" Content="Материалы" Width="140" Click="ViewSwitch_Click"/>
                     <Button x:Name="BtnServices" Content="Услуги" Width="120" Click="ViewSwitch_Click"/>
-                    <Button x:Name="BtnPayments" Content="Способы оплаты" Width="120" Click="ViewSwitch_Click"/>
-                    <Button x:Name="BtnHistory" Content="История договоров" Width="120" Click="ViewSwitch_Click"/>
+                    <Button x:Name="BtnPayments" Content="Способы оплаты" Width="140" Click="ViewSwitch_Click"/>
+                    <Button x:Name="BtnHistory" Content="История договоров" Width="160" Click="ViewSwitch_Click"/>
                 </StackPanel>
             </StackPanel>
 

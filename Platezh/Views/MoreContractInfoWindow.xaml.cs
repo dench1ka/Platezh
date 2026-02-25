@@ -131,5 +131,10 @@ namespace Platezh.Views
             public decimal TotalPriceItem { get; set; }
             public string ItemName { get; set; } = "";
         }
+
+        private void ButtonBack_Click(object sender, RoutedEventArgs e)
+        {
+            this.Close();
+        }
     }
 }
