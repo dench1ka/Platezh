@@ -81,6 +81,17 @@
                                   TextSearch.TextPath="FullName"
                                   Margin="0,3,0,15"/>
 
+                        <Label Content="Способ оплаты:"/>
+                        <ComboBox x:Name="PaymentMethodComboBox" 
+                              DisplayMemberPath="PaymentName" 
+                              SelectedValuePath="PaymentTypeID"
+                              Margin="0,3,0,10"/>
+
+                        <CheckBox x:Name="IsPaidCheckBox" 
+                              Content="Оплачено сразу" 
+                              VerticalAlignment="Center" 
+                              Margin="0,5,0,15"/>
+
                         <Button x:Name="generateContract" Height="45" Content="Сформировать договор" Click="GenerateContract_Click" FontWeight="Bold"/>
                     </StackPanel>
 

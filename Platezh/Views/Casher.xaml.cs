@@ -126,8 +126,10 @@ namespace Platezh.Views
 
         private void ClearAllFields()
         {
+            basket.Clear(); 
             selectedMaterialsWithQty.Clear();
             selectedServicesList.Clear();
+
             SelectedItemsListBox.Items.Clear();
 
             SurnameBox.Clear();
@@ -190,15 +192,19 @@ namespace Platezh.Views
                 }
             }
 
-            var headers = new Dictionary<string, string>
-            {
-                { "PaymentTypeID", "ID" },
-                { "PaymentName", "Название способа оплаты" }
-            };
+            PaymentMethodComboBox.ItemsSource = null;
+            PaymentMethodComboBox.ItemsSource = paymentTypesList;
 
-            CreateColumns(headers);
-            MainGrid.ItemsSource = paymentTypesList.ToList();
-            
+            if (currentMode == ViewMode.PaymentTypes) 
+            {
+                var headers = new Dictionary<string, string>
+                {
+                    { "PaymentTypeID", "ID" },
+                    { "PaymentName", "Название способа оплаты" }
+                };
+                CreateColumns(headers);
+                MainGrid.ItemsSource = paymentTypesList.ToList();
+            }
         }
 
         private void LoadHistory()
@@ -501,7 +507,12 @@ namespace Platezh.Views
         private void MainGrid_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
             if (currentMode == ViewMode.Clients && MainGrid.SelectedItem is ClientItem client)
+            {
                 ClientSelectBox.SelectedItem = client;
+            } else if (currentMode == ViewMode.History && MainGrid.SelectedItem is HistoryItem history) {
+                
+            }
+            
         }
 
         private void Addbtnclicked(object sender, RoutedEventArgs e) => SelectRecord();
@@ -592,11 +603,18 @@ namespace Platezh.Views
 
         private void MoreInfoBtn_Click(object sender, RoutedEventArgs e)
         {
-            if (MainGrid.SelectedItem == null) return;
-
-            EditWindow editWin = new EditWindow(this, currentMode, MainGrid.SelectedItem);
-            editWin.ShowDialog();
+            if (currentMode == ViewMode.History && MainGrid.SelectedItem is HistoryItem selectedHistory)
+            {
+                var moreContractInfoWindow = new MoreContractInfoWindow(selectedHistory.ContractID);
+                moreContractInfoWindow.Owner = this;
+                moreContractInfoWindow.ShowDialog();
+            }
+            else
+            {
+                MessageBox.Show("Пожалуйста, выберите договор из списка для подробной информации.", "Внимание", MessageBoxButton.OK, MessageBoxImage.Warning);
+            }
         }
+
 
         private void GenerateContract_Click(object sender, RoutedEventArgs e)
         {
@@ -662,9 +680,17 @@ namespace Platezh.Views
                     dateIssued = selectedClient.IssuedDate ?? DateTime.Now
                 };
 
-                // ВНИМАНИЕ: Для работы этого кода у вас в XAML должны быть добавлены:
-                // 1. CheckBox или ComboBox со статусом оплаты (назовем его IsPaidCheckBox)
-                // 2. ComboBox с выбором метода оплаты (назовем его PaymentMethodComboBox)
+                bool isPaid = IsPaidCheckBox.IsChecked == true;
+                string statusString = isPaid ? "Оплачено" : "Не оплачено";
+
+                var selectedPaymentType = PaymentMethodComboBox.SelectedItem as PaymentTypeItem;
+                int? selectedPaymentTypeId = selectedPaymentType?.PaymentTypeID;
+                
+                if (isPaid && selectedPaymentTypeId == null)
+                {
+                    MessageBox.Show("Выберите способ оплаты!", "Внимание", MessageBoxButton.OK, MessageBoxImage.Warning);
+                    return;
+                }
 
                 using (SqlConnection conn = new SqlConnection(connectionString))
                 {
@@ -688,18 +714,11 @@ namespace Platezh.Views
                                 }
                                 else
                                 {
-                                    // Предполагаем, что НДС для услуг равен 0 или уже включен в TotalPrice
                                     totalWithoutNds += item.Service.TotalPrice;
                                     totalAmount += item.Service.TotalPrice;
                                 }
                             }
 
-                            // Статусы берем из UI (заглушки для примера, замените на ваши элементы управления)
-                            bool isPaid = false; // Замените на: IsPaidCheckBox.IsChecked == true;
-                            string statusString = isPaid ? "Оплачено" : "Не оплачено";
-                            int? selectedPaymentTypeId = null; // Замените на: (PaymentMethodComboBox.SelectedItem as PaymentTypeItem)?.PaymentTypeID;
-
-                            // --- 2. Добавление записи в Contracts ---
                             string insertContractSql = @"
                             INSERT INTO Contracts (ContractNumber, ClientID, ContractDate, TotalWithoutNds, TotalNds, TotalAmount, Status, CreatedBy)
                             VALUES (@num, @clientId, @date, @totNoNds, @totNds, @totAmt, @status, @createdBy);
@@ -720,7 +739,6 @@ namespace Platezh.Views
                                 newContractId = Convert.ToInt32(cmdContract.ExecuteScalar());
                             }
 
-                            // --- 3. Добавление элементов корзины в ContractItems и обновление остатков ---
                             // --- 3. Добавление элементов корзины в ContractItems и обновление остатков ---
                             foreach (var item in basket)
                             {
@@ -807,6 +825,7 @@ namespace Platezh.Views
                 ClearAllFields();
 
                 if (currentMode == ViewMode.Materials) LoadPrices();
+
             }
             catch (Exception ex)
             {
