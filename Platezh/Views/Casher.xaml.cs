@@ -959,7 +959,11 @@ namespace Platezh.Views
             PaymentTypeNameBox.Clear();
         }
 
-        private void Button_Click(object sender, RoutedEventArgs e) { this.Close(); }
+        private void Button_Click(object sender, RoutedEventArgs e) { 
+            MainWindow mainWindow = new MainWindow();
+            mainWindow.Show();
+            this.Close();
+        }
         private void ShowContracts(object sender, RoutedEventArgs e) { }
         private void SelectFolderButton_Click(object sender, RoutedEventArgs e) { }
         private void Window_Closing(object sender, System.ComponentModel.CancelEventArgs e) { }
