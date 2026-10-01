@@ -83,7 +83,8 @@ namespace Platezh
                 {
                     await connection.OpenAsync();
 
-                    string query = "SELECT IsActive, RoleID FROM Users WHERE Login = @Login AND PasswordHash = @PasswordHash";
+                    string query = "SELECT UserID, IsActive, RoleID FROM Users WHERE Login = @Login AND PasswordHash = @PasswordHash";
+               
 
                     using (SqlCommand command = new SqlCommand(query, connection))
                     {
@@ -94,6 +95,7 @@ namespace Platezh
                         {
                             if (await reader.ReadAsync())
                             {
+                                int userId = reader.GetInt32(reader.GetOrdinal("UserID"));
                                 bool isActive = reader.GetBoolean(reader.GetOrdinal("IsActive"));
                                 int userRoleId = reader.GetInt32(reader.GetOrdinal("RoleID"));
 
@@ -122,7 +124,7 @@ namespace Platezh
                                 Window nextWindow = roleName switch
                                 {
                                     "Экономист" => new Economist(),
-                                    "Кассир" => new Casher(),
+                                    "Кассир" => new Casher(userId),
                                     "Администратор" => new AdminWindow(),
                                     _ => throw new Exception("Неизвестная роль")
                                 };

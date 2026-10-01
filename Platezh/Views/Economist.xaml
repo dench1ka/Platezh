@@ -12,183 +12,121 @@
         <Style TargetType="Button">
             <Setter Property="Background" Value="#FF1976D2"/>
             <Setter Property="Foreground" Value="White"/>
-            <Setter Property="BorderBrush" Value="#FF0D47A1"/>
-            <Setter Property="FontWeight" Value="SemiBold"/>
-            <Setter Property="Margin" Value="5"/>
             <Setter Property="Padding" Value="10,5"/>
-            <Setter Property="FontSize" Value="14"/>
-            <Setter Property="Template">
-                <Setter.Value>
-                    <ControlTemplate TargetType="Button">
-                        <Border Background="{TemplateBinding Background}" 
-                                BorderBrush="{TemplateBinding BorderBrush}" 
-                                BorderThickness="1" 
-                                CornerRadius="4">
-                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                        </Border>
-                    </ControlTemplate>
-                </Setter.Value>
-            </Setter>
-            <Style.Triggers>
-                <Trigger Property="IsMouseOver" Value="True">
-                    <Setter Property="Background" Value="#FF1565C0"/>
-                </Trigger>
-                <Trigger Property="IsPressed" Value="True">
-                    <Setter Property="Background" Value="#FF0D47A1"/>
-                </Trigger>
-            </Style.Triggers>
-        </Style>
-
-        <Style TargetType="Label">
-            <Setter Property="Foreground" Value="#FF424242"/>
-            <Setter Property="FontWeight" Value="SemiBold"/>
-            <Setter Property="FontSize" Value="14"/>
-            <Setter Property="Margin" Value="0,3,0,2"/>
-        </Style>
-
-        <Style TargetType="TextBox">
-            <Setter Property="BorderBrush" Value="#FFBDBDBD"/>
-            <Setter Property="Background" Value="White"/>
-            <Setter Property="Foreground" Value="#FF424242"/>
-            <Setter Property="Height" Value="32"/>
-            <Setter Property="Margin" Value="0,3,0,5"/>
-            <Setter Property="Padding" Value="6"/>
-            <Setter Property="FontSize" Value="14"/>
-            <Setter Property="VerticalContentAlignment" Value="Center"/>
-        </Style>
-
-        <Style TargetType="DataGrid">
-            <Setter Property="Background" Value="White"/>
-            <Setter Property="BorderBrush" Value="#FFE0E0E0"/>
-            <Setter Property="RowBackground" Value="White"/>
-            <Setter Property="AlternatingRowBackground" Value="#FFF5F5F5"/>
-            <Setter Property="HeadersVisibility" Value="Column"/>
-            <Setter Property="AutoGenerateColumns" Value="False"/>
-            <Setter Property="CanUserAddRows" Value="False"/>
-            <Setter Property="CanUserDeleteRows" Value="False"/>
-            <Setter Property="SelectionMode" Value="Single"/>
-            <Setter Property="IsReadOnly" Value="True"/>
-            <Setter Property="GridLinesVisibility" Value="Horizontal"/>
-            <Setter Property="BorderThickness" Value="1"/>
-            <Setter Property="FontSize" Value="14"/>
-            <Setter Property="HorizontalGridLinesBrush" Value="#FFEEEEEE"/>
-            <Setter Property="VerticalGridLinesBrush" Value="#FFEEEEEE"/>
-            <Setter Property="ColumnHeaderHeight" Value="35"/>
-            <Setter Property="RowHeight" Value="32"/>
-        </Style>
-
-        <Style TargetType="ComboBox">
-            <Setter Property="Height" Value="32"/>
-            <Setter Property="Margin" Value="0,3,0,5"/>
-            <Setter Property="FontSize" Value="14"/>
+            <Setter Property="Margin" Value="5"/>
         </Style>
     </Window.Resources>
 
     <Grid Background="#FFF5F9FF" Margin="8">
         <Grid.ColumnDefinitions>
             <ColumnDefinition Width="*"/>
-            <ColumnDefinition Width="300"/>
+            <ColumnDefinition Width="380"/>
         </Grid.ColumnDefinitions>
 
-        <StackPanel Grid.Column="0" Orientation="Vertical" Margin="0,10,0,0">
+        <Grid Grid.Column="0" Margin="0,10,10,0">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="*"/>
+            </Grid.RowDefinitions>
 
-            <StackPanel Orientation="Horizontal" HorizontalAlignment="Left" Margin="0,0,0,10">
-
+            <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="0,0,0,10">
                 <StackPanel Width="300" Margin="0,0,20,0">
                     <Label Content="Поиск"/>
                     <TextBox x:Name="SearchBox" TextChanged="SearchBox_TextChanged"/>
                 </StackPanel>
 
-                <StackPanel Orientation="Horizontal" VerticalAlignment="Bottom" Margin="20,0,0,0">
-                    <Button x:Name="BtnPrices" Content="Цены и склад" Width="140" Height="38" Click="ViewSwitch_Click"/>
-                    <Button x:Name="BtnReference" Content="Справочник материалов" Width="190" Height="38" Click="ViewSwitch_Click"/>
-                    <Button x:Name="BtnServices" Content="Услуги" Width="140" Height="38" Click="ViewSwitch_Click"/>
-                    <Button x:Name="BtnUnits" Content="Единицы измерения" Width="170" Height="38" Click="ViewSwitch_Click"/>
+                <StackPanel Orientation="Horizontal" VerticalAlignment="Bottom">
+                    <Button x:Name="BtnPrices" Content="Цены и склад" Width="140" Click="ViewSwitch_Click"/>
+                    <Button x:Name="BtnReference" Content="Справочник материалов" Width="190" Click="ViewSwitch_Click"/>
+                    <Button x:Name="BtnServices" Content="Услуги" Width="120" Click="ViewSwitch_Click"/>
+                    <Button x:Name="BtnUnits" Content="Единицы измерения" Width="160" Click="ViewSwitch_Click"/>
                 </StackPanel>
             </StackPanel>
 
-            <Label x:Name="CurrentTableTitle" Content="Цены и склад" FontSize="20" FontWeight="Bold" Margin="0,0,0,5"/>
+            <Label Grid.Row="1" x:Name="CurrentTableTitle" Content="Цены и склад" FontSize="20" FontWeight="Bold" Margin="0,5"/>
 
-            <Border CornerRadius="5" BorderBrush="#FFE0E0E0" BorderThickness="1" Background="White">
-                <DataGrid x:Name="MainGrid" MouseDoubleClick="Grid_Click" Height="680"/>
+            <Border Grid.Row="2" CornerRadius="5" BorderBrush="#FFE0E0E0" BorderThickness="1" Background="White">
+                <DataGrid x:Name="MainGrid" 
+                          AutoGenerateColumns="False" 
+                          CanUserAddRows="False" 
+                          IsReadOnly="True" 
+                          MouseDoubleClick="Grid_Click">
+                </DataGrid>
             </Border>
-        </StackPanel>
+        </Grid>
 
-        <Border Grid.Column="1" Background="White" CornerRadius="5" BorderBrush="#FFE0E0E0" BorderThickness="1" 
-                Margin="10,10,0,10" Padding="12">
-            <StackPanel>
-                <TextBlock Text="Управление данными" FontWeight="Bold" Foreground="#FF1976D2" 
-                           FontSize="16" Margin="0,0,0,10"/>
+        <Border Grid.Column="1" Background="White" CornerRadius="5" BorderBrush="#FFE0E0E0" BorderThickness="1" Margin="10,10,0,10" Padding="12">
+            <ScrollViewer VerticalScrollBarVisibility="Auto">
+                <StackPanel>
+                    <TextBlock Text="Управление данными" FontWeight="Bold" Foreground="#FF1976D2" FontSize="16" Margin="0,0,0,10"/>
 
-                <StackPanel x:Name="MaterialsInputPanel" Margin="0,5,0,0">
+                    <StackPanel x:Name="MaterialsInputPanel">
+                        <Label Content="Выберите материал:"/>
+                        <ComboBox x:Name="MaterialSelectBox" 
+                                  DisplayMemberPath="Name" 
+                                  SelectedValuePath="MaterialID" 
+                                  IsEditable="True"
+                                  StaysOpenOnEdit="True"
+                                  Margin="0,0,0,5"/>
 
-                    <Label Content="Выберите материал"/>
-                    <ComboBox x:Name="MaterialSelectBox" 
-                        DisplayMemberPath="Name" 
-                        SelectedValuePath="MaterialID" 
-                        IsEditable="True"
-                        StaysOpenOnEdit="True"
-                        Margin="0,3,0,5"/>
+                        <Label Content="Кол-во материала:"/>
+                        <TextBox x:Name="StockBox" Margin="0,0,0,5"/>
 
-                    <Label Content="Введите кол-во материала"/>
-                    <TextBox x:Name="StockBox"/>
+                        <Label Content="Стоимость:"/>
+                        <TextBox x:Name="PriceBox" Margin="0,0,0,5"/>
 
-                    <StackPanel Orientation="Vertical" Margin="0,5,0,0">
-                        <Label Content="Введите стоимость"/>
-                 
-                        <TextBox x:Name="PriceBox" Margin="0,0,5,0"/>
+                        <Label Content="НДС:"/>
+                        <TextBox x:Name="NdsBox" Margin="0,0,0,5"/>
+
+                        <Label Content="Дата с:"/>
+                        <DatePicker x:Name="DateFrom" Margin="0,0,0,5"/>
+
+                        <Label Content="Дата по:"/>
+                        <DatePicker x:Name="DateTo" Margin="0,0,0,5"/>
+
+                        <CheckBox x:Name="PriceIsActiveCheckBox" Content="Активен" 
+                                 IsChecked="True" Margin="0,10,0,10" VerticalContentAlignment="Center"/>
                     </StackPanel>
 
-                    <StackPanel Orientation="Vertical" Margin="0,5,0,0">
-                        <Label Content="Введите НДС"/>
-
-                        <TextBox x:Name="NdsBox"  Margin="0,0,5,0"/>
-
+                    <StackPanel x:Name="ServicesInputPanel" Visibility="Collapsed">
+                        <Label Content="ID тарифа:"/>
+                        <TextBox x:Name="TarifIdBox" Margin="0,0,0,5"/>
+                        <Label Content="Название:"/>
+                        <TextBox x:Name="TarifNameBox" Margin="0,0,0,5"/>
+                        <Label Content="Тариф:"/>
+                        <TextBox x:Name="TarifBox" Margin="0,0,0,5"/>
+                        <Label Content="Стоимость материалов:"/>
+                        <TextBox x:Name="AdditionalMaterialsPriceBox" Margin="0,0,0,5"/>
+                        <CheckBox x:Name="TarifIsActiveCheckBox" Content="Активен" 
+                                 IsChecked="True" Margin="0,10,0,10" VerticalContentAlignment="Center"/>
                     </StackPanel>
-                    <Label Content="Дата с"/>
-                    <DatePicker x:Name="DateFrom"/>
-                    <Label Content="Дата по"/>
-                    <DatePicker x:Name="DateTo"/>
-                    <CheckBox x:Name="PriceIsActiveCheckBox" Content="Активен/Неактивен" 
-                         IsChecked="True" Margin="0,10,0,10" VerticalContentAlignment="Center"/>
-                </StackPanel>
 
-                <StackPanel x:Name="ServicesInputPanel" Margin="0,5,0,0" Visibility="Collapsed">
-                    <Label Content="Введите id"/>
-                    <TextBox x:Name="TarifIdBox"/>
-                    <Label Content="Введите название"/>
-                    <TextBox x:Name="TarifNameBox"/>
-                    <Label Content="Введите тариф"/>
-                    <TextBox x:Name="TarifBox"/>
-                    <Label Content="Введите стоимость доп. материалов"/>
-                    <TextBox x:Name="AdditionalMaterialsPriceBox"/>
-                    <CheckBox x:Name="TarifIsActiveCheckBox" Content="Активен/Неактивен" 
-                         IsChecked="True" Margin="0,10,0,10" VerticalContentAlignment="Center"/>
-                </StackPanel>
-                
-                <StackPanel x:Name="UnitsInputPanel" Margin="0,5,0,0" Visibility="Collapsed">
-                    <Label Content="Введите ед. измерения"/>
-                    <TextBox x:Name="UnitBox"/>
-                </StackPanel>
+                    <StackPanel x:Name="UnitsInputPanel" Visibility="Collapsed">
+                        <Label Content="Ед. измерения:"/>
+                        <TextBox x:Name="UnitBox" Margin="0,0,0,5"/>
+                    </StackPanel>
 
-                <StackPanel x:Name="ReferenceInputPanel" Margin="0,5,0,0" Visibility="Collapsed">
-                    <Label Content="Введите название"/>
-                    <TextBox x:Name="UnitNameBox"/>
-                    <Label Content="Единица измерения"/>
-                    <ComboBox x:Name="UnitChoice" DisplayMemberPath="Name" SelectedValuePath="UnitID" />
+                    <StackPanel x:Name="ReferenceInputPanel" Visibility="Collapsed">
+                        <Label Content="Название:"/>
+                        <TextBox x:Name="UnitNameBox" Margin="0,0,0,5"/>
+                        <Label Content="Единица измерения:"/>
+                        <ComboBox x:Name="UnitChoice" DisplayMemberPath="Name" SelectedValuePath="UnitID" Margin="0,0,0,5"/>
+                        <CheckBox x:Name="IsActiveCheckBox" Content="Активен" 
+                                 IsChecked="True" Margin="0,10,0,10" VerticalContentAlignment="Center"/>
+                    </StackPanel>
 
-                    <CheckBox x:Name="IsActiveCheckBox" Content="Активен (доступен для выбора)" 
-                         IsChecked="True" Margin="0,10,0,10" VerticalContentAlignment="Center"/>
-                </StackPanel>
+                    <Separator Margin="0,15"/>
 
-                <StackPanel Margin="0,15,0,0">
-                    <Button Content="Добавить" Click="Add_Click" Height="38"/>
-                    <Button Content="Удалить" Click="Delete_Click" Height="38" Margin="0,8,0,0"/>
-                    <Button Content="Обновить" Click="Update_Click" Height="38" Margin="0,8,0,0"/>
-                    <Button Content="Редактировать" Click="Edit_Click" Height="38" Margin="0,8,0,0"/>
-                    <Button Content="Назад" Click="Button_Click" Height="38" Margin="0,15,0,0"/>
+                    <Button Content="Добавить" Click="Add_Click" Background="#FF43A047" Height="40" FontWeight="Bold"/>
+                    <Button Content="Редактировать" Click="Edit_Click" Height="40" FontWeight="Bold"/>
+                    <Button Content="Обновить" Click="Update_Click" Height="40" FontWeight="Bold"/>
+                    <Button Content="Удалить" Click="Delete_Click" Background="#FFD32F2F" Height="40" FontWeight="Bold"/>
+
+                    <Separator Margin="0,15"/>
+                    <Button Content="Назад" Click="Button_Click" Background="#FF757575" Height="35"/>
                 </StackPanel>
-            </StackPanel>
+            </ScrollViewer>
         </Border>
     </Grid>
 </Window>

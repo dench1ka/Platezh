@@ -1,83 +1,56 @@
 # Platezh
 
-### **Project Description: "Platezh"**  
+Десктоп-приложение на C# (WPF) для автоматизации работы с платными
+услугами в больнице: экономист ведёт справочники услуг, материалов и
+цен, кассир оформляет договор на клиента, принимает оплату и печатает
+документ.
 
-#### **Project Name:**  
-**Platezh – A Desktop Application for Managing Paid Services in a Hospital**  
+Курсовая работа по дисциплине "Базы данных и СУБД".
 
-#### **Project Goal:**  
-Develop a user-friendly and secure software solution to automate the work of cashiers and economists when processing paid medical services.  
+## Роли
 
-#### **Description:**  
-The application is designed for hospital staff handling paid services. It provides an intuitive interface for economists to enter service types and pricing, and for cashiers to generate payment agreements based on selected services.  
+Роли хранятся в таблице `Role` в БД и назначаются при регистрации:
 
-The application operates over a local network, connecting to a server that stores data on available services and their prices. Payment agreements are automatically generated in Word format, with an option for printing.  
+- **Экономист** — ведёт услуги, материалы, единицы измерения и цены на
+  материалы (с НДС, сроком действия и остатком на складе)
+- **Кассир** — ведёт базу клиентов, собирает договор из услуг и
+  материалов в корзину, оформляет оплату, печатает договор, смотрит
+  историю и детали прошлых договоров
+- **Админ** — управляет пользователями (создание, активация/деактивация,
+  сброс пароля)
 
-#### **Key Features:**  
-✅ **Role selection on login (Cashier or Economist)**  
-✅ **Secure authentication (with password visibility toggle)**  
-✅ **Adding and editing services (Economist)**  
-✅ **Selecting services and auto-filling payment agreements (Cashier)**  
-✅ **Local network operation with server-side data storage**  
-✅ **User-friendly interface for non-technical staff**  
+## Как оформляется договор
 
-#### **Technologies Used:**  
-- **Programming Language:** C#  
-- **Graphical Interface:** WPF (Windows Presentation Foundation)  
-- **Document Handling:** Word (OpenXML or Interop libraries)  
-- **Database:** (Planned, e.g., SQLite, MS SQL Server)  
-- **Network Communication:** Local server-based operations  
+1. Кассир выбирает клиента из базы и добавляет услуги/материалы в корзину
+2. При оформлении в одной транзакции SQL Server:
+   - создаётся запись в `Contracts` (итоговые суммы, статус, кто оформил)
+   - каждая позиция корзины пишется в `ContractItems`
+   - при выборе материала списывается остаток в `MaterialPrices`
+   - если договор оплачен — создаётся запись в `Payments`
+3. Параллельно `ExcelService` на `ClosedXML` заполняет Excel-шаблон
+   (`Templates/serviceContract.xlsx`) и сохраняет готовый документ на диск
+4. Историю договоров и платёж по каждому можно посмотреть в разделе
+   "История" — отдельное окно `MoreContractInfoWindow`
 
-#### **Target Audience:**  
-📌 **Hospital Cashiers** – Fast processing of payment agreements  
-📌 **Economists** – Managing the list of paid services and pricing  
+## Стек
 
-#### **Expected Outcomes:**  
-✅ Simplified cashier workflow for payment processing  
-✅ Elimination of manual errors in agreement preparation  
-✅ Centralized storage of paid service data  
-✅ Increased automation and efficiency for hospital staff  
+- C#, .NET 8, WPF
+- Microsoft SQL Server — доступ через `Microsoft.Data.SqlClient`
+  (ADO.NET, параметризованные запросы, транзакции)
+- ClosedXML — генерация договора из Excel-шаблона
+- Пароли хранятся в виде SHA-256 хэша
 
-⚡ **This project aims to enhance hospital efficiency, improve patient service quality, and reduce paperwork.**
+## Запуск
 
----
+Нужен локальный SQL Server (например, SQL Server Express):
 
-### **Описание проекта "Платеж"**  
+```bash
+sqlcmd -S localhost\SQLEXPRESS -i schema.sql
+```
 
-#### **Название проекта:**  
-**Платеж – десктопное приложение для управления платными услугами в больнице**  
+Строка подключения — в `Platezh/App.config`.
 
-#### **Цель проекта:**  
-Разработка удобного и безопасного программного обеспечения для автоматизации работы кассира и экономиста при оформлении платных услуг в медицинском учреждении.  
-
-#### **Описание:**  
-Приложение предназначено для сотрудников больницы, работающих с платными услугами. Оно предоставляет удобный интерфейс для экономиста, который вводит виды услуг и их стоимость, а также для кассира, который формирует договор на оплату выбранных услуг.  
-
-Приложение работает в локальной сети, подключаясь к серверу, где хранятся данные о доступных услугах и их стоимости. Договор автоматически формируется в формате Word с возможностью печати.  
-
-#### **Основные функции:**  
-✅ **Выбор роли при входе (кассир или экономист)**  
-✅ **Безопасная авторизация (с возможностью скрытия пароля)**  
-✅ **Добавление и редактирование услуг (экономист)**  
-✅ **Выбор услуг и автоматическое заполнение шаблона договора (кассир)**  
-✅ **Работа в локальной сети с серверным хранилищем данных**  
-✅ **Простота и удобство интерфейса для пользователей без технических навыков**  
-
-#### **Технологии:**  
-- **Язык программирования:** C#  
-- **Графический интерфейс:** WPF (Windows Presentation Foundation)  
-- **Работа с документами:** Word (библиотека OpenXML или Interop)  
-- **База данных:** (планируется, например, SQLite, MS SQL Server)  
-- **Сетевое взаимодействие:** Работа через локальный сервер  
-
-#### **Аудитория:**  
-📌 **Кассиры больницы** – быстрое оформление договоров на оплату услуг  
-📌 **Экономисты** – управление списком платных услуг и их стоимостью  
-
-#### **Ожидаемый результат:**  
-✅ Упрощение работы кассира при оформлении платежей  
-✅ Исключение ошибок при заполнении договоров  
-✅ Централизованное хранение данных о платных услугах  
-✅ Автоматизация и ускорение работы сотрудников  
-
-⚡ **Проект направлен на повышение эффективности работы больницы, улучшение качества обслуживания пациентов и снижение бумажной волокиты.**
+```bash
+dotnet build
+dotnet run --project Platezh
+```

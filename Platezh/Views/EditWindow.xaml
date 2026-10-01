@@ -1,122 +1,101 @@
 ﻿<Window x:Class="Platezh.Views.EditWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
-        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
-        xmlns:local="clr-namespace:Platezh.Views"
-        mc:Ignorable="d"
         Title="Окно редактирования" 
         Height="600" 
         Width="650"
         FontSize="14"
         WindowStartupLocation="CenterScreen"
         MinWidth="650"
+        MinHeight="550"
         Icon="/Assets/Icons/logo.ico"
-        MinHeight="550">
+        Background="#FFF5F9FF">
 
     <Window.Resources>
         <Style TargetType="Button">
             <Setter Property="Background" Value="#FF1976D2"/>
             <Setter Property="Foreground" Value="White"/>
-            <Setter Property="BorderBrush" Value="#FF0D47A1"/>
             <Setter Property="FontWeight" Value="SemiBold"/>
-            <Setter Property="Margin" Value="5"/>
             <Setter Property="Padding" Value="10,5"/>
-            <Setter Property="Template">
-                <Setter.Value>
-                    <ControlTemplate TargetType="Button">
-                        <Border Background="{TemplateBinding Background}" 
-                                BorderBrush="{TemplateBinding BorderBrush}" 
-                                BorderThickness="1" 
-                                CornerRadius="4">
-                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                        </Border>
-                    </ControlTemplate>
-                </Setter.Value>
-            </Setter>
-            <Style.Triggers>
-                <Trigger Property="IsMouseOver" Value="True">
-                    <Setter Property="Background" Value="#FF1565C0"/>
-                </Trigger>
-                <Trigger Property="IsPressed" Value="True">
-                    <Setter Property="Background" Value="#FF0D47A1"/>
-                </Trigger>
-            </Style.Triggers>
+            <Setter Property="Margin" Value="5"/>
         </Style>
 
         <Style TargetType="TextBox">
             <Setter Property="Height" Value="32"/>
-            <Setter Property="Margin" Value="0,0,0,10"/>
-            <Setter Property="Padding" Value="6"/>
+            <Setter Property="Margin" Value="0,2,0,12"/>
+            <Setter Property="Padding" Value="6,2"/>
             <Setter Property="VerticalContentAlignment" Value="Center"/>
+        </Style>
+
+        <Style TargetType="Label">
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Margin" Value="0,2,0,0"/>
+            <Setter Property="Foreground" Value="#FF424242"/>
         </Style>
     </Window.Resources>
 
-    <Grid Background="#FFF5F9FF" Margin="10">
+    <Grid Margin="15">
         <Grid.ColumnDefinitions>
             <ColumnDefinition Width="*"/>
-            <ColumnDefinition Width="Auto"/>
+            <ColumnDefinition Width="220"/>
         </Grid.ColumnDefinitions>
 
-        <Border Grid.Column="0" Background="White" CornerRadius="5" BorderBrush="#FFE0E0E0" BorderThickness="1" Padding="15">
+        <Border Grid.Column="0" Background="White" CornerRadius="5" BorderBrush="#FFE0E0E0" BorderThickness="1" Padding="20">
             <ScrollViewer VerticalScrollBarVisibility="Auto">
                 <StackPanel>
-                    <TextBlock Text="Редактирование данных" FontWeight="Bold" Foreground="#FF1976D2" FontSize="16" Margin="0,0,0,10"/>
+                    <TextBlock Text="Редактирование данных" FontWeight="Bold" Foreground="#FF1976D2" FontSize="18" Margin="0,0,0,15"/>
 
-                    <Label x:Name="SectionName" Content="Режим:" FontWeight="Bold" Foreground="Gray"/>
-                    <Label x:Name="NameItem" Content="Элемент" FontWeight="Bold" FontSize="18" Margin="0,0,0,15"/>
+                    <StackPanel Orientation="Horizontal" Margin="0,0,0,5">
+                        <Label x:Name="SectionName" Content="Режим:" Foreground="Gray"/>
+                        <Label x:Name="NameItem" Content="Элемент" FontSize="16" Foreground="#FF1976D2"/>
+                    </StackPanel>
 
-                    <Label Content="ID"/>
-                    <TextBox x:Name="IdBox" IsReadOnly="True" Background="#F0F0F0" Width="320" HorizontalAlignment="Left"/>
+                    <Separator Margin="0,5,0,15"/>
 
-                    <Label Content="Название"/>
-                    <TextBox x:Name="NameBox" Width="320" HorizontalAlignment="Left"/>
+                    <Label Content="ID записи:"/>
+                    <TextBox x:Name="IdBox" IsReadOnly="True" Background="#FFF0F0F0" Foreground="Gray" Width="300" HorizontalAlignment="Left"/>
 
-                    <CheckBox x:Name="IsActiveCheck" Content="Запись активна (доступна для использования)" 
-                              FontWeight="SemiBold" Margin="0,5,0,15" Foreground="#FF1976D2"/>
+                    <Label Content="Название:"/>
+                    <TextBox x:Name="NameBox" Width="300" HorizontalAlignment="Left"/>
+
+                    <CheckBox x:Name="IsActiveCheck" Content="Запись активна (доступна в системе)" 
+                              FontWeight="SemiBold" Margin="0,5,0,20" Foreground="#FF1976D2" VerticalContentAlignment="Center"/>
 
                     <StackPanel x:Name="MaterialsInputPanel">
-                        <Label Content="Количество на складе"/>
-                        <TextBox x:Name="StockBox" Width="320" HorizontalAlignment="Left"/>
+                        <Label Content="Количество на складе:"/>
+                        <TextBox x:Name="StockBox" Width="300" HorizontalAlignment="Left"/>
 
-                        <Label Content="Цена без НДС"/>
-                        <TextBox x:Name="PriceWithoutNdsBox" Width="320" HorizontalAlignment="Left"/>
+                        <Label Content="Цена без НДС:"/>
+                        <TextBox x:Name="PriceWithoutNdsBox" Width="300" HorizontalAlignment="Left"/>
 
-                        <Grid HorizontalAlignment="Left" Width="320">
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="*"/>
-                                <ColumnDefinition Width="Auto"/>
-                            </Grid.ColumnDefinitions>
-                            <StackPanel Grid.Column="0">
-                                <Label Content="НДС в %"/>
-                                <TextBox x:Name="NdsBox" Margin="0,0,5,10"/>
-                            </StackPanel>
-           
-                        </Grid>
+                        <Label Content="НДС в %:"/>
+                        <TextBox x:Name="NdsBox" Width="100" HorizontalAlignment="Left"/>
                     </StackPanel>
 
                     <StackPanel x:Name="ServicesInputPanel">
-                        <Label Content="Тариф (базовая цена)"/>
-                        <TextBox x:Name="TarifBox" Width="320" HorizontalAlignment="Left"/>
+                        <Label Content="Тариф (базовая цена):"/>
+                        <TextBox x:Name="TarifBox" Width="300" HorizontalAlignment="Left"/>
 
-                        <Label Content="Стоимость доп. материалов"/>
-                        <TextBox x:Name="AdditionalMaterialsPriceBox" Width="320" HorizontalAlignment="Left"/>
+                        <Label Content="Стоимость доп. материалов:"/>
+                        <TextBox x:Name="AdditionalMaterialsPriceBox" Width="300" HorizontalAlignment="Left"/>
                     </StackPanel>
-
-                   
                 </StackPanel>
             </ScrollViewer>
         </Border>
 
-        <Border Grid.Column="1" Background="White" CornerRadius="5" BorderBrush="#FFE0E0E0" BorderThickness="1" Margin="10,0,0,0" Padding="15" Width="200" VerticalAlignment="Top">
-            <StackPanel>
-                <TextBlock Text="Действия" FontWeight="Bold" Foreground="#FF1976D2" FontSize="16" Margin="0,0,0,15" HorizontalAlignment="Center"/>
+        <StackPanel Grid.Column="1" Margin="15,0,0,0">
+            <Border Background="White" CornerRadius="5" BorderBrush="#FFE0E0E0" BorderThickness="1" Padding="15">
+                <StackPanel>
+                    <TextBlock Text="Действия" FontWeight="Bold" Foreground="#FF1976D2" FontSize="16" Margin="0,0,0,15" HorizontalAlignment="Center"/>
 
-                <Button x:Name="SaveBtn" Content="Сохранить" Height="45" Click="SaveChanges_Click"/>
+                    <Button x:Name="SaveBtn" Content="Сохранить" Height="45" Background="#FF43A047" Click="SaveChanges_Click"/>
 
-                <TextBlock Text="Расчет итоговой суммы произойдет автоматически при сохранении." 
-                           TextWrapping="Wrap" FontSize="11" Foreground="Gray" Margin="0,10,0,0" TextAlignment="Center"/>
-            </StackPanel>
-        </Border>
+                    <TextBlock Text="Расчет итоговой суммы произойдет автоматически при сохранении." 
+                               TextWrapping="Wrap" FontSize="11" Foreground="Gray" Margin="5,15,5,0" TextAlignment="Center"/>
+                </StackPanel>
+            </Border>
+
+            <Button Content="Закрыть" Height="35" Margin="0,10,0,0" Background="#FF757575" Click="CancelButton_Click"/>
+        </StackPanel>
     </Grid>
 </Window>
